@@ -98,10 +98,15 @@ module MysqlGenius
       TRAILING_KEYWORD_PATTERN = /\b(WHERE|AND|OR|ON|JOIN|INNER|OUTER|LEFT|RIGHT|CROSS|HAVING|SET|BETWEEN|LIKE|IN|NOT|IS|FROM|SELECT|GROUP|ORDER|LIMIT|OFFSET|UNION|EXCEPT|INTERSECT)\s*$/i
 
       def looks_complete?(sql)
-        return false if sql.match?(TRAILING_KEYWORD_PATTERN)
-        return false if sql.match?(%r{[,=<>!(+\-*/]\s*$})
+        # Strip Rails-style query annotation comments (/*action=...*/) before
+        # inspecting the trailing token. Otherwise the `/` at the end of `*/`
+        # would trip the trailing-operator check and false-flag the statement
+        # as truncated.
+        bare = sql.gsub(%r{/\*.*?\*/}m, " ").strip
+        return false if bare.match?(TRAILING_KEYWORD_PATTERN)
+        return false if bare.match?(%r{[,=<>!(+\-*/]\s*$})
 
-        sql.match?(/[\w'"`)\]]\s*$/)
+        bare.match?(/[\w'"`)\]]\s*$/)
       end
     end
   end

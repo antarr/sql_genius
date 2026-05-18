@@ -195,6 +195,23 @@ RSpec.describe(MysqlGenius::Core::Analysis::ServerOverview) do
         expect(result[:queries][:questions]).to(eq(901_000))
         expect(result[:queries][:qps]).to(eq(10.0))
       end
+
+      it "reports temp file count without the misleading 100% disk-spill ratio" do
+        result = analysis.call
+        # PG's temp_files is just a count of spilled-out work_mem files; it has
+        # no in-memory denominator the way MySQL Created_tmp_tables does, so
+        # presenting it as N / N at 100% would flag a danger badge on every
+        # PG dashboard.
+        expect(result[:queries][:tmp_disk_pct]).to(eq(0))
+        expect(result[:queries][:tmp_tables]).to(eq(5))
+        expect(result[:queries][:tmp_disk_tables]).to(eq(5))
+      end
+
+      it "leaves aborted_clients/aborted_connects at 0 (PG has no direct equivalent)" do
+        result = analysis.call
+        expect(result[:connections][:aborted_clients]).to(eq(0))
+        expect(result[:connections][:aborted_connects]).to(eq(0))
+      end
     end
   end
 end

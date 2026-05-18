@@ -75,14 +75,14 @@ module MysqlGenius
 
         def system_prompt
           <<~PROMPT
-            You are a MySQL index consolidation planner. Given schema information, unused indexes, duplicate indexes, and current index listings, produce a consolidated optimization plan. For each recommendation:
-            - DROP redundant or unused indexes (with exact ALTER TABLE ... DROP INDEX statements)
+            You are a #{DialectHints.name_for(@connection)} index consolidation planner. Given schema information, unused indexes, duplicate indexes, and current index listings, produce a consolidated optimization plan. For each recommendation:
+            - DROP redundant or unused indexes using #{DialectHints.name_for(@connection)} syntax (e.g. `ALTER TABLE t DROP INDEX i;` on MySQL/MariaDB, `DROP INDEX "i";` on PostgreSQL)
             - MERGE overlapping indexes into composites where beneficial
             - KEEP indexes that are actively used and well-structured
             - ADD new composite indexes where query patterns suggest benefit
             - Provide rationale for each change and estimated impact on read/write performance
             #{@config.domain_context}
-            Respond with JSON: {"plan": "markdown with specific ALTER TABLE / DROP INDEX / CREATE INDEX statements, rationale for each change, and estimated impact"}
+            Respond with JSON: {"plan": "markdown with dialect-appropriate DROP INDEX / CREATE INDEX statements, rationale for each change, and estimated impact"}
           PROMPT
         end
       end

@@ -45,12 +45,32 @@ module MysqlGenius
       view_context.render(partial: "mysql_genius/queries/#{name}")
     end
 
-    # Capability flag for shared templates. The Rails adapter always
-    # reports every capability as present because it owns all routes
-    # (including the Redis-backed slow_queries / anomaly_detection /
-    # root_cause features).
-    def capability?(_name)
-      true
+    # Capability flag for shared templates. Used to hide AI feature buttons
+    # whose underlying service has no equivalent on the connected dialect
+    # (e.g. InnoDB Health, Variable Review, Connection Advisor, Root Cause
+    # Analysis, and Anomaly Detection all read MySQL-specific server state
+    # via SHOW commands / performance_schema).
+    #
+    # All other capabilities default to true — the Rails adapter owns every
+    # route, including Redis-backed slow_queries.
+    def capability?(name)
+      case name
+      when :mysql_only_ai
+        !connected_to_postgresql?
+      else
+        true
+      end
+    end
+
+    private
+
+    def connected_to_postgresql?
+      MysqlGenius::Core::Connection::ActiveRecordAdapter
+        .new(ActiveRecord::Base.connection)
+        .server_version
+        .postgresql?
+    rescue StandardError
+      false
     end
   end
 end

@@ -33,9 +33,7 @@ module MysqlGenius
         private
 
         def system_prompt(schema_description)
-          prompt = <<~PROMPT
-            You are a SQL query assistant for a MySQL database.
-          PROMPT
+          prompt = +"You are a SQL query assistant for a #{DialectHints.name_for(@connection)} database.\n"
 
           if @config.system_context && !@config.system_context.empty?
             prompt += <<~PROMPT
@@ -50,7 +48,7 @@ module MysqlGenius
             Rules:
             - Only generate SELECT statements. Never generate INSERT, UPDATE, DELETE, or any other mutation.
             - Only reference the tables and columns listed in the schema below. Do not guess or invent column names.
-            - Use backticks for table and column names.
+            - #{DialectHints.identifier_quoting_rule(@connection)}
             - Include a LIMIT 100 unless the user specifies otherwise.
 
             Available schema:

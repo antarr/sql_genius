@@ -33,7 +33,7 @@ module MysqlGenius
 
         def system_prompt
           <<~PROMPT
-            You are a MySQL migration risk assessor. Given a Rails migration or DDL, evaluate:
+            You are a #{DialectHints.name_for(@connection)} migration risk assessor. Given a Rails migration or DDL, evaluate:
             1. Will this lock the table? For how long given the row count?
             2. Is this safe to run during traffic, or does it need a maintenance window?
             3. Should pt-online-schema-change or gh-ost be used instead?

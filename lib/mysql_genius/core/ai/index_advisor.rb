@@ -26,7 +26,7 @@ module MysqlGenius
 
         def system_prompt
           <<~PROMPT
-            You are a MySQL index advisor. Given a query, its EXPLAIN output, and current index/cardinality information, suggest optimal indexes. Consider:
+            You are a #{DialectHints.name_for(@connection)} index advisor. Given a query, its EXPLAIN output, and current index/cardinality information, suggest optimal indexes. Consider:
             - Composite index column ordering (most selective first, or matching query order)
             - Covering indexes to avoid table lookups
             - Partial indexes for long string columns

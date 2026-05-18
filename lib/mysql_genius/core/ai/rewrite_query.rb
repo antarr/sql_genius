@@ -27,7 +27,7 @@ module MysqlGenius
 
         def system_prompt(schema)
           <<~PROMPT
-            You are a MySQL query rewrite expert. Analyze the SQL for anti-patterns and suggest a rewritten version. Look for:
+            You are a #{DialectHints.name_for(@connection)} query rewrite expert. Analyze the SQL for anti-patterns and suggest a rewritten version. Look for:
             - SELECT * when specific columns would suffice
             - Correlated subqueries that could be JOINs
             - OR conditions preventing index use (suggest UNION ALL)

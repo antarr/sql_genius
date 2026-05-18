@@ -186,7 +186,11 @@ module MysqlGenius
             ).to_i
             usage_pct = max_conn.positive? ? ((current_conn.to_f / max_conn) * 100).round(1) : 0
 
-            db_stats = current_db_stats
+            # PostgreSQL doesn't track aborted-connect counts the way MySQL
+            # does, and pg_stat_database.xact_rollback (rolled-back
+            # transactions) is a different concept — surface it on the
+            # PG-specific path elsewhere if needed, rather than mislabeling
+            # it as "Aborted Clients" here.
             {
               max: max_conn,
               current: current_conn,
@@ -195,7 +199,7 @@ module MysqlGenius
               threads_cached: 0,
               threads_created: 0,
               aborted_connects: 0,
-              aborted_clients: db_stats[:xact_rollback],
+              aborted_clients: 0,
               max_used: 0,
             }
           end
@@ -223,16 +227,20 @@ module MysqlGenius
             db_stats = current_db_stats
             questions = db_stats[:xact_commit].to_i + db_stats[:xact_rollback].to_i
             qps = uptime_seconds.positive? ? (questions.to_f / uptime_seconds).round(1) : 0
-            tmp_tables = db_stats[:temp_files]
-            tmp_disk_pct = tmp_tables.positive? ? 100.0 : 0
+            # PG's `temp_files` is a single count of files written when sorts/
+            # hashes spilled out of work_mem. Surface it on both sides of the
+            # fraction with a 0% ratio so the dashboard doesn't flag a red
+            # "100% spilled to disk" badge that the metric doesn't actually
+            # mean on PostgreSQL.
+            temp_files = db_stats[:temp_files]
 
             {
               questions: questions,
               qps: qps,
               slow_queries: 0,
-              tmp_tables: tmp_tables,
-              tmp_disk_tables: tmp_tables,
-              tmp_disk_pct: tmp_disk_pct,
+              tmp_tables: temp_files,
+              tmp_disk_tables: temp_files,
+              tmp_disk_pct: 0,
               select_full_join: 0,
               sort_merge_passes: 0,
             }

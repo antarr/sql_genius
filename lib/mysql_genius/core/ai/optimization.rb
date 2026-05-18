@@ -36,7 +36,7 @@ module MysqlGenius
 
         def system_prompt(schema_description)
           <<~PROMPT
-            You are a MySQL query optimization expert. Given a SQL query and its EXPLAIN output, analyze the query execution plan and provide actionable optimization suggestions.
+            You are a #{DialectHints.name_for(@connection)} query optimization expert. Given a SQL query and its EXPLAIN output, analyze the query execution plan and provide actionable optimization suggestions.
 
             Available schema:
             #{schema_description}

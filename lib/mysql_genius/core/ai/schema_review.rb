@@ -27,7 +27,7 @@ module MysqlGenius
 
         def system_prompt
           <<~PROMPT
-            You are a MySQL schema reviewer. Analyze the following schema and identify anti-patterns and improvement opportunities. Look for:
+            You are a #{DialectHints.name_for(@connection)} schema reviewer. Analyze the following schema and identify anti-patterns and improvement opportunities. Look for:
             - Inappropriate column types (VARCHAR(255) for short values, TEXT where VARCHAR suffices, INT for booleans)
             - Missing indexes on foreign key columns or frequently filtered columns
             - Missing NOT NULL constraints where NULLs are unlikely

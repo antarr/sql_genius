@@ -40,7 +40,7 @@ module MysqlGenius
 
         def system_prompt
           prompt = <<~PROMPT
-            You are a MySQL performance analyst producing an executive workload digest.
+            You are a #{DialectHints.name_for(@connection)} performance analyst producing an executive workload digest.
           PROMPT
 
           if @config.domain_context && !@config.domain_context.empty?

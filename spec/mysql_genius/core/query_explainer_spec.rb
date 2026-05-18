@@ -74,6 +74,19 @@ RSpec.describe(MysqlGenius::Core::QueryExplainer) do
         .not_to(raise_error)
     end
 
+    it "accepts SQL ending with a Rails query-annotation comment (closed block comment)" do
+      # SELECT ... /*action='table_sizes',application='WeVote',controller='queries'*/
+      # ends in `*/` which would otherwise trip the trailing-operator check.
+      connection.stub_query(/EXPLAIN/, columns: ["id"], rows: [[1]])
+
+      expect do
+        explainer.explain(
+          %(SELECT COUNT(*) FROM users /*action='table_sizes',application='WeVote',controller='queries'*/),
+          skip_validation: true,
+        )
+      end.not_to(raise_error)
+    end
+
     it "strips a trailing semicolon before wrapping in EXPLAIN" do
       captured_sql = nil
       connection.stub_query(/EXPLAIN/, columns: ["id"], rows: [[1]])
