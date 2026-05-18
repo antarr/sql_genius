@@ -32,7 +32,7 @@ module MysqlGenius
           raise QueryRunner::Rejected, error if error
         end
 
-        clean_sql = sql.gsub(/;\s*\z/, "")
+        clean_sql = normalize_placeholders(sql.gsub(/;\s*\z/, ""))
 
         unless looks_complete?(clean_sql)
           raise Truncated, "This query appears to be truncated and cannot be explained."
@@ -42,6 +42,54 @@ module MysqlGenius
       end
 
       private
+
+      # Captured digest text from pg_stat_statements has literals replaced with
+      # $1, $2, ... bind placeholders, and MySQL's performance_schema digest
+      # uses ?. Running EXPLAIN directly on that text fails ("there is no
+      # parameter $1" on PG, similar on MySQL). Substituting NULL lets the
+      # planner produce a plan — selectivity won't match the real query but
+      # the shape (join order, indexes used, scan types) is still useful.
+      #
+      # On PostgreSQL we only substitute $N — those don't appear in
+      # hand-written SQL and the substitution is unambiguous. On MySQL we
+      # only substitute ? outside of single-quoted strings to avoid mangling
+      # user-typed literals like `WHERE name = '?'`.
+      def normalize_placeholders(sql)
+        if @connection.server_version.postgresql?
+          sql.gsub(/\$\d+/, "NULL")
+        else
+          replace_unquoted_question_marks(sql)
+        end
+      end
+
+      # Walks the SQL once, tracking whether we're inside a single-quoted
+      # string (with '' as the escape). Replaces ? with NULL only when
+      # outside a string literal.
+      def replace_unquoted_question_marks(sql)
+        out = +""
+        in_string = false
+        i = 0
+        while i < sql.length
+          ch = sql[i]
+          # Doubled single quote inside a string literal is an escaped quote;
+          # consume both chars without toggling in_string.
+          if in_string && ch == "'" && sql[i + 1] == "'"
+            out << "''"
+            i += 2
+            next
+          end
+          if ch == "'"
+            in_string = !in_string
+            out << ch
+          elsif !in_string && ch == "?"
+            out << "NULL"
+          else
+            out << ch
+          end
+          i += 1
+        end
+        out
+      end
 
       # Heuristic: SQL ends with a value-like token (identifier, number, closing
       # paren/bracket, or closing quote). A trailing SQL keyword such as WHERE,

@@ -85,5 +85,88 @@ RSpec.describe(MysqlGenius::Core::QueryExplainer) do
       explainer.explain("SELECT id FROM users;")
       expect(captured_sql).to(eq("EXPLAIN SELECT id FROM users"))
     end
+
+    context "with a PostgreSQL connection" do
+      before { connection.stub_server_version("PostgreSQL 16.1") }
+
+      it "substitutes $N bind placeholders with NULL so EXPLAIN can plan a captured digest" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["plan"], rows: [["Seq Scan on users"]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        explainer.explain(
+          %(SELECT "users".* FROM "users" WHERE "users"."slug" = $1 LIMIT $2),
+          skip_validation: true,
+        )
+        expect(captured_sql).to(eq(%(EXPLAIN SELECT "users".* FROM "users" WHERE "users"."slug" = NULL LIMIT NULL)))
+      end
+
+      it "leaves SQL without placeholders untouched" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["plan"], rows: [["Seq Scan"]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        explainer.explain("SELECT id FROM users", skip_validation: true)
+        expect(captured_sql).to(eq("EXPLAIN SELECT id FROM users"))
+      end
+
+      it "handles multi-digit placeholders ($10, $42)" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["plan"], rows: [["plan"]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        explainer.explain("SELECT id FROM users WHERE a = $10 AND b = $42", skip_validation: true)
+        expect(captured_sql).to(include("a = NULL AND b = NULL"))
+      end
+    end
+
+    context "with a MySQL connection (default FakeAdapter version)" do
+      it "substitutes unquoted ? placeholders with NULL" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["id"], rows: [[1]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        explainer.explain("SELECT * FROM users WHERE id = ? LIMIT ?", skip_validation: true)
+        expect(captured_sql).to(eq("EXPLAIN SELECT * FROM users WHERE id = NULL LIMIT NULL"))
+      end
+
+      it "does not substitute ? inside single-quoted string literals" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["id"], rows: [[1]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        explainer.explain("SELECT * FROM users WHERE name = '?' AND id = ?", skip_validation: true)
+        expect(captured_sql).to(eq("EXPLAIN SELECT * FROM users WHERE name = '?' AND id = NULL"))
+      end
+
+      it "handles escaped single quotes ('' inside a string) without breaking placeholder detection" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["id"], rows: [[1]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        # The 'O''Brien' literal contains an escaped quote; the ? after it
+        # is OUTSIDE any string and should be substituted.
+        explainer.explain("SELECT * FROM users WHERE name = 'O''Brien' AND id = ?", skip_validation: true)
+        expect(captured_sql).to(eq("EXPLAIN SELECT * FROM users WHERE name = 'O''Brien' AND id = NULL"))
+      end
+    end
   end
 end
