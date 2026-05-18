@@ -3,10 +3,9 @@
 module MysqlGenius
   module Core
     module Analysis
-      # Service class for the Rails engine's GET /columns action and its
-      # Phase 2b sidecar equivalent. Takes a Core::Connection and the
-      # relevant configuration; returns a tagged Result struct that
-      # adapters map to HTTP responses.
+      # Service class for the Rails engine's GET /columns action. Takes a
+      # Core::Connection and the relevant configuration; returns a tagged
+      # Result struct that the controller maps to HTTP responses.
       #
       # Each status maps 1:1 to an HTTP status code:
       #   :ok        → 200 with columns: array

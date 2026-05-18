@@ -16,9 +16,8 @@ module MysqlGenius
     #                resets it to 0 in an ensure block (the server enforces
     #                the cancel-on-timeout behaviour)
     #
-    # Does NOT handle audit logging — the caller (Rails concern or future
-    # desktop sidecar) is responsible for recording successful queries and
-    # errors using whatever logger it owns.
+    # Does NOT handle audit logging — the caller is responsible for
+    # recording successful queries and errors using whatever logger it owns.
     class QueryRunner
       class Rejected < Core::Error; end
       class Timeout < Core::Error; end

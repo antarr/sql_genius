@@ -6,7 +6,7 @@ RSpec.describe("Analysis routes", type: :request) do
   before do
     # Return canned information_schema and performance_schema results for
     # all the SELECTs the analysis classes emit. The actual analysis logic
-    # is unit-tested in gems/mysql_genius-core/spec/.../analysis/*_spec.rb;
+    # is unit-tested in spec/mysql_genius/core/analysis/*_spec.rb;
     # these request specs only verify routing/dispatch/JSON serialization.
     stub_connection(tables: ["users"])
     allow(ActiveRecord::Base.connection).to(receive_messages(exec_query: fake_result, select_value: "8.0.35"))

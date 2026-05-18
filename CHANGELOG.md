@@ -3,19 +3,27 @@
 ## Unreleased
 
 ### Added
-- **PostgreSQL support across the Rails dashboard.** Core analyses (table sizes, query stats, unused indexes, server overview, duplicate indexes, query history) plus the Rails-side query detail page now run against PostgreSQL in addition to MySQL/MariaDB. Dialect is detected automatically from the `ActiveRecord::Base.connection`.
-- Duplicate index DROP statements come from the backend (dialect-aware) instead of being assembled in JavaScript with MySQL backtick syntax; the dashboard JS now uses `d.drop_sql` from the response.
-- Friendly error messages in `DatabaseAnalysis` reflect the actual stats source (`pg_stat_statements` on PG, `performance_schema` on MySQL/MariaDB).
-- MySQL-only AI features (`root_cause`, `anomaly_detection`, `variable_review`, `connection_advisor`, `innodb_health`) return a clear "MySQL/MariaDB-only" error on PostgreSQL instead of leaking raw `PG::SyntaxError` exceptions.
-- See `mysql_genius-core` Unreleased for the full set of dialect-aware additions (query builders, `QueryHistory` analysis, `UnsupportedDialect` error class, PostgreSQL system-schema blocking, `SET statement_timeout` enforcement).
+- **PostgreSQL support across the dashboard.** Analyses (table sizes, query stats, unused indexes, server overview, duplicate indexes, query history) and the query detail page now run against PostgreSQL in addition to MySQL/MariaDB. Dialect is detected automatically from the `ActiveRecord::Base.connection`.
+- `MysqlGenius::Core::QueryBuilders` — dialect-aware SQL generation layer with two builders (`Mysql` covering MySQL/MariaDB, `Postgresql`). Analyses delegate SQL generation through it.
+- `MysqlGenius::Core::Analysis::QueryHistory` — single-digest stats lookup used by the query detail page; reads `pg_stat_statements` on PG, `performance_schema.events_statements_summary_by_digest` on MySQL.
+- `MysqlGenius::Core::Analysis::DuplicateIndexes` now includes a `drop_sql` field per result (`ALTER TABLE ... DROP INDEX` on MySQL, `DROP INDEX IF EXISTS "..."` on PG). The dashboard JS uses this instead of assembling MySQL syntax client-side.
+- `MysqlGenius::Core::UnsupportedDialect` error class. `VariableReviewer`, `ConnectionAdvisor`, and `InnodbInterpreter` raise it on PG so the UI surfaces a clear "MySQL/MariaDB-only" message instead of a raw `PG::SyntaxError`. Controller-side `root_cause` and `anomaly_detection` short-circuit on PG with the same kind of error.
+- `Core::ServerInfo` recognises `:postgresql` as a vendor; exposes `#postgresql?` and `#dialect`.
+- `Core::QueryRunner` issues `SET statement_timeout = ms` (and resets to 0 in an `ensure` block) on PostgreSQL; recognises `canceling statement due to statement timeout` as a timeout error.
+- `Core::SqlValidator` blocks PG system schemas (`pg_catalog`, `pg_toast`, `pg_temp`) and parses double-quoted identifiers.
 
 ### Changed
+- **`mysql_genius-core` has been merged back into the main `mysql_genius` gem.** The split was originally added to support a planned desktop app; with that path discontinued, the two gems become one. Host apps no longer need `gem "mysql_genius-core"` in their Gemfile — it's gone, and the runtime dependency in `mysql_genius.gemspec` is gone too. The `MysqlGenius::Core::*` namespace is preserved, so all existing `require` paths and constant lookups continue to work unchanged.
 - `ActiveRecordAdapter#server_version` is memoized — dialect detection runs `SELECT VERSION()` at most once per adapter instance.
-- Cosmetic view text in the Tables, Query Stats, and Unused Indexes tab headers no longer references MySQL-specific source tables.
+- Tab header text in Tables / Query Stats / Unused Indexes no longer mentions `performance_schema` / `information_schema` by name.
+
+### Removed
+- The `mysql_genius-desktop` gem stub. Desktop sidecar / macOS DMG packaging scripts (`packaging/macos/`) are removed; they only assembled the now-deleted gem.
+- `MysqlGenius::Core::VERSION` constant. Use `MysqlGenius::VERSION`.
 
 ### Notes
 - PostgreSQL query stats require the `pg_stat_statements` extension to be installed and enabled (`shared_preload_libraries`).
-- Slow query log capture remains MySQL-only (no equivalent capture mechanism exists yet for PG slow logs).
+- Slow query log capture remains MySQL-only.
 
 ## 0.8.1
 

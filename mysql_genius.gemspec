@@ -23,13 +23,12 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
-    %x(git ls-files -z).split("\x0").reject { |f| f.match(%r{^(test|spec|features|gems)/}) }
+    %x(git ls-files -z).split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   end
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
   spec.add_dependency("activerecord", ">= 6.0", "< 9")
-  spec.add_dependency("mysql_genius-core", "~> 0.8.0")
   spec.add_dependency("railties", ">= 6.0", "< 9")
 end

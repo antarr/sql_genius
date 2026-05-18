@@ -9,9 +9,8 @@ module MysqlGenius
     # against the real adapters and the FakeAdapter test helper.
     #
     # Implementing adapters:
-    #   MysqlGenius::Core::Connection::FakeAdapter        — in this gem, for tests
-    #   MysqlGenius::Core::Connection::ActiveRecordAdapter — in mysql_genius (Rails adapter)
-    #   MysqlGenius::Core::Connection::TrilogyAdapter      — in mysql_genius-desktop (Phase 2)
+    #   MysqlGenius::Core::Connection::FakeAdapter         — used by tests
+    #   MysqlGenius::Core::Connection::ActiveRecordAdapter — wraps ActiveRecord::Base.connection
     #
     # Contract (every adapter must implement):
     #
