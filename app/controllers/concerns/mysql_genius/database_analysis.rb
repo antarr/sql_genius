@@ -26,8 +26,15 @@ module MysqlGenius
     end
 
     def unused_indexes
-      indexes = MysqlGenius::Core::Analysis::UnusedIndexes.new(rails_connection).call
-      render(json: indexes)
+      result = MysqlGenius::Core::Analysis::UnusedIndexes.new(
+        rails_connection,
+        min_scans: mysql_genius_config.min_unused_index_scans,
+      ).call
+      render(json: {
+        indexes: result.indexes,
+        stats_reset_at: result.stats_reset_at,
+        min_scans: result.min_scans,
+      })
     rescue ActiveRecord::StatementInvalid => e
       render(json: { error: "#{unused_indexes_source_name} #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
     end

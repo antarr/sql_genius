@@ -72,6 +72,14 @@ module MysqlGenius
     # Defaults to true.
     attr_accessor :stats_collection
 
+    # Maximum scan count for an index to still be considered "unused" by the
+    # Unused Indexes dashboard. The default (0) means only indexes that have
+    # never been scanned since the stats source was last reset are flagged.
+    # Raise this to ignore indexes that are technically used but rarely
+    # enough to be worth dropping (e.g. min_unused_index_scans = 50 to require
+    # at least 50 scans before considering an index "useful").
+    attr_accessor :min_unused_index_scans
+
     def initialize
       @featured_tables = []
       @blocked_tables = [
@@ -96,6 +104,7 @@ module MysqlGenius
       @audit_logger = nil
       @base_controller = "ActionController::Base"
       @stats_collection = true
+      @min_unused_index_scans = 0
     end
 
     def ai_enabled?

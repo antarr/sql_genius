@@ -21,6 +21,12 @@
 - The `mysql_genius-desktop` gem stub. Desktop sidecar / macOS DMG packaging scripts (`packaging/macos/`) are removed; they only assembled the now-deleted gem.
 - `MysqlGenius::Core::VERSION` constant. Use `MysqlGenius::VERSION`.
 
+### Unused Indexes: PgHero-style context
+- `GET /mysql_genius/unused_indexes` now returns `{ indexes: [...], stats_reset_at, min_scans }` instead of a bare array. The Unused Indexes tab shows "Stats last reset N ago · threshold: scans ≤ M" above the table so an empty/fresh stats source doesn't read as "everything is unused."
+- New `config.min_unused_index_scans` (default 0 — PgHero parity). Raise it (e.g. 50) to ignore indexes that are technically used but rarely enough to consider dropping.
+- The PG query now sorts results by index byte size DESC (largest first — biggest wins). Each result hash carries a `size_bytes` field; the table shows a Size column. `pg_relation_size` is the source.
+- Removed the `c.reltuples > 0` filter so indexes on empty tables show up too (matches PgHero — empty tables with indexes are still actionable noise).
+
 ### Notes
 - PostgreSQL query stats require the `pg_stat_statements` extension to be installed and enabled (`shared_preload_libraries`).
 - Slow query log capture remains MySQL-only.

@@ -105,7 +105,8 @@ module MysqlGenius
           SQL
         end
 
-        def unused_indexes(_connection)
+        def unused_indexes(_connection, min_scans: 0)
+          threshold = [min_scans.to_i, 0].max
           <<~SQL
             SELECT
               s.schemaname AS table_schema,
@@ -113,16 +114,29 @@ module MysqlGenius
               s.indexrelname AS index_name,
               s.idx_scan AS reads,
               s.idx_tup_read AS writes,
-              c.reltuples::bigint AS table_rows
+              c.reltuples::bigint AS table_rows,
+              pg_relation_size(s.indexrelid)::bigint AS size_bytes
             FROM pg_stat_user_indexes s
             JOIN pg_index i ON i.indexrelid = s.indexrelid
             JOIN pg_class c ON c.oid = s.relid
             WHERE NOT i.indisprimary
               AND NOT i.indisunique
-              AND s.idx_scan = 0
-              AND c.reltuples > 0
-            ORDER BY s.idx_tup_read DESC, s.indexrelname ASC
+              AND s.idx_scan <= #{threshold}
+            ORDER BY pg_relation_size(s.indexrelid) DESC, s.indexrelname ASC
           SQL
+        end
+
+        # Last time pg_stat_database counters (which back pg_stat_user_indexes,
+        # pg_stat_user_tables, etc.) were reset for the current database.
+        # Surfacing this lets the dashboard distinguish "this index is unused"
+        # from "stats were reset five minutes ago and nothing has run yet".
+        def stats_reset_at(connection)
+          connection.select_value(
+            "SELECT stats_reset FROM pg_stat_database " \
+              "WHERE datname = #{connection.quote(connection.current_database)}",
+          )
+        rescue StandardError
+          nil
         end
 
         def drop_index_sql(table:, index_name:)

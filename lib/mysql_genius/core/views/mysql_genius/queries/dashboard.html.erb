@@ -89,6 +89,47 @@
   function hide(e) { e.classList.add('mg-hidden'); }
   function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+  function formatBytes(bytes) {
+    if (bytes === null || bytes === undefined) return '—';
+    var n = Number(bytes);
+    if (!isFinite(n) || n <= 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
+    return (n / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+  }
+
+  function formatRelativeTime(isoString) {
+    if (!isoString) return null;
+    var then = new Date(isoString);
+    if (isNaN(then.getTime())) return null;
+    var diffMs = Date.now() - then.getTime();
+    if (diffMs < 0) diffMs = 0;
+    var seconds = Math.floor(diffMs / 1000);
+    if (seconds < 60) return seconds + 's ago';
+    var minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return minutes + 'm ago';
+    var hours = Math.floor(minutes / 60);
+    if (hours < 48) return hours + 'h ago';
+    var days = Math.floor(hours / 24);
+    return days + 'd ago';
+  }
+
+  function renderUnusedStatsContext(data) {
+    var ctx = el('unused-stats-context');
+    if (!ctx) return;
+    var parts = [];
+    if (data && data.stats_reset_at) {
+      var rel = formatRelativeTime(data.stats_reset_at);
+      if (rel) parts.push('Stats last reset <strong>' + escHtml(rel) + '</strong>');
+    }
+    var threshold = data && (data.min_scans || data.min_scans === 0) ? data.min_scans : null;
+    if (threshold !== null) {
+      parts.push('threshold: scans &le; <strong>' + threshold + '</strong>');
+    }
+    ctx.innerHTML = parts.length ? parts.join(' &middot; ') : '';
+    if (parts.length) show(ctx); else hide(ctx);
+  }
+
   // --- Table Sorting ---
 
   function parseSortValue(text) {
@@ -459,7 +500,8 @@
 
     // Unused indexes count
     ajaxGet(ROUTES.unused_indexes, {}, function(data) {
-      var count = Array.isArray(data) ? data.length : 0;
+      var indexes = (data && data.indexes) || [];
+      var count = indexes.length;
       var countEl = el('dash-unused-count');
       if (count === 0) {
         countEl.innerHTML = '<span style="color:#28a745;">&#10003; 0</span>';
@@ -1142,12 +1184,15 @@
         el('unused-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml(data.error) + '</div>';
         show(el('unused-error')); return;
       }
-      if (!data.length) { show(el('unused-empty')); el('unused-count').textContent = '0'; return; }
-      el('unused-count').textContent = data.length + ' found';
-      el('unused-tbody').innerHTML = data.map(function(d) {
+      var indexes = (data && data.indexes) || [];
+      renderUnusedStatsContext(data);
+      if (!indexes.length) { show(el('unused-empty')); el('unused-count').textContent = '0'; return; }
+      el('unused-count').textContent = indexes.length + ' found';
+      el('unused-tbody').innerHTML = indexes.map(function(d) {
         return '<tr>' +
           '<td><strong>' + escHtml(d.table) + '</strong></td>' +
           '<td><code>' + escHtml(d.index_name) + '</code></td>' +
+          '<td class="mg-num">' + formatBytes(d.size_bytes) + '</td>' +
           '<td class="mg-num">' + d.reads + '</td>' +
           '<td class="mg-num">' + Number(d.writes).toLocaleString() + '</td>' +
           '<td class="mg-num">' + Number(d.table_rows).toLocaleString() + '</td>' +
@@ -1161,7 +1206,7 @@
       var ts = migrationTimestamp();
       var migrationLines = ['# ' + ts + '_remove_unused_indexes.rb', '',
         'class RemoveUnusedIndexes < ActiveRecord::Migration[' + RAILS_MIGRATION_VERSION + ']', '  def change'];
-      data.forEach(function(d) {
+      indexes.forEach(function(d) {
         migrationLines.push('    remove_index :' + d.table + ', name: :' + d.index_name);
       });
       migrationLines.push('  end', 'end');

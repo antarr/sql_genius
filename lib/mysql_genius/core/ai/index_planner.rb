@@ -14,7 +14,7 @@ module MysqlGenius
           target_tables = resolve_tables(tables)
           return { "plan" => "No tables found to analyze." } if target_tables.empty?
 
-          unused = Analysis::UnusedIndexes.new(@connection).call
+          unused = Analysis::UnusedIndexes.new(@connection).call.indexes
           duplicates = Analysis::DuplicateIndexes.new(@connection, blocked_tables: []).call
           schema = SchemaContextBuilder.new(@connection).call(target_tables, detail: :with_cardinality)
 

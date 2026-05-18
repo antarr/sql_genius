@@ -89,7 +89,8 @@ module MysqlGenius
           SQL
         end
 
-        def unused_indexes(connection)
+        def unused_indexes(connection, min_scans: 0)
+          threshold = [min_scans.to_i, 0].max
           <<~SQL
             SELECT
               s.OBJECT_SCHEMA AS table_schema,
@@ -97,17 +98,24 @@ module MysqlGenius
               s.INDEX_NAME AS index_name,
               s.COUNT_READ AS `reads`,
               s.COUNT_WRITE AS `writes`,
-              t.TABLE_ROWS AS table_rows
+              t.TABLE_ROWS AS table_rows,
+              NULL AS size_bytes
             FROM performance_schema.table_io_waits_summary_by_index_usage s
             JOIN information_schema.tables t
               ON t.TABLE_SCHEMA = s.OBJECT_SCHEMA AND t.TABLE_NAME = s.OBJECT_NAME
             WHERE s.OBJECT_SCHEMA = #{connection.quote(connection.current_database)}
               AND s.INDEX_NAME IS NOT NULL
               AND s.INDEX_NAME != 'PRIMARY'
-              AND s.COUNT_READ = 0
-              AND t.TABLE_ROWS > 0
+              AND s.COUNT_READ <= #{threshold}
             ORDER BY s.COUNT_WRITE DESC
           SQL
+        end
+
+        # MySQL's table_io_waits counters track since server start with no
+        # cheap way to surface that timestamp at query time, so we return nil
+        # and let the dashboard fall back to "since server restart" wording.
+        def stats_reset_at(_connection)
+          nil
         end
 
         def drop_index_sql(table:, index_name:)

@@ -28,6 +28,10 @@ RSpec.describe(MysqlGenius::Configuration) do
       expect(config.slow_query_threshold_ms).to(eq(250))
     end
 
+    it "defaults min_unused_index_scans to 0 (PgHero parity — flag only truly unused)" do
+      expect(config.min_unused_index_scans).to(eq(0))
+    end
+
     it "defaults authenticate to allow all" do
       expect(config.authenticate.call(nil)).to(be(true))
     end
