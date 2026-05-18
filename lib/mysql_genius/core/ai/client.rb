@@ -60,11 +60,31 @@ module MysqlGenius
           body = {
             messages: messages,
             response_format: { type: "json_object" },
-            temperature: temperature,
           }
-          body[:max_tokens] = @config.max_tokens.to_i if @config.max_tokens
+          # GPT-5 and o-series ("reasoning") models renamed max_tokens to
+          # max_completion_tokens and only accept temperature=1 (the default).
+          # Older chat models (gpt-4o, gpt-4, gpt-3.5) keep the original names.
+          if openai_reasoning_model?
+            body[:max_completion_tokens] = @config.max_tokens.to_i if @config.max_tokens
+          else
+            body[:max_tokens] = @config.max_tokens.to_i if @config.max_tokens
+            body[:temperature] = temperature
+          end
           body[:model] = @config.model if @config.model && !@config.model.empty?
           body
+        end
+
+        # Returns true when the configured model belongs to the OpenAI families
+        # that reject `max_tokens` and `temperature` overrides: gpt-5*, o1*,
+        # o3*, o4*. Matches the bare model name plus common deployment-name
+        # prefixes (Azure deployments are user-named but typically include the
+        # model identifier).
+        OPENAI_REASONING_MODEL_PATTERN = /\b(gpt-5|o1|o3|o4)(-|\b)/i.freeze
+        def openai_reasoning_model?
+          model = @config.model.to_s
+          return false if model.empty?
+
+          model.match?(OPENAI_REASONING_MODEL_PATTERN)
         end
 
         def build_anthropic_body(messages, temperature)

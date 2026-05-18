@@ -155,6 +155,111 @@ RSpec.describe(MysqlGenius::Core::Ai::Client) do
       end
     end
 
+    context "with gpt-4o (legacy chat model)" do
+      let(:http_response) { ok_response('{"ok":true}') }
+
+      it "sends max_tokens and temperature" do
+        captured_body = nil
+        stub_http_with_block do |http|
+          allow(http).to(receive(:request)) do |req|
+            captured_body = JSON.parse(req.body)
+            http_response
+          end
+        end
+
+        client.chat(messages: [{ role: "user", content: "hi" }], temperature: 0)
+
+        expect(captured_body).to(have_key("max_tokens"))
+        expect(captured_body).not_to(have_key("max_completion_tokens"))
+        expect(captured_body["temperature"]).to(eq(0))
+      end
+    end
+
+    context "with gpt-5 / o-series reasoning models" do
+      let(:http_response) { ok_response('{"ok":true}') }
+
+      def with_reasoning_model(model_name, &block)
+        cfg = MysqlGenius::Core::Ai::Config.new(
+          client: nil,
+          endpoint: "https://api.example.com/v1/chat/completions",
+          api_key: "sk-test-key",
+          model: model_name,
+          auth_style: :bearer,
+          system_context: nil,
+        )
+        block.call(described_class.new(cfg))
+      end
+
+      it "sends max_completion_tokens instead of max_tokens for gpt-5-mini" do
+        captured_body = nil
+        stub_http_with_block do |http|
+          allow(http).to(receive(:request)) do |req|
+            captured_body = JSON.parse(req.body)
+            http_response
+          end
+        end
+
+        with_reasoning_model("gpt-5-mini") do |c|
+          c.chat(messages: [{ role: "user", content: "hi" }])
+        end
+
+        expect(captured_body).to(have_key("max_completion_tokens"))
+        expect(captured_body).not_to(have_key("max_tokens"))
+      end
+
+      it "omits temperature for reasoning models (they only accept the default)" do
+        captured_body = nil
+        stub_http_with_block do |http|
+          allow(http).to(receive(:request)) do |req|
+            captured_body = JSON.parse(req.body)
+            http_response
+          end
+        end
+
+        with_reasoning_model("gpt-5") do |c|
+          c.chat(messages: [{ role: "user", content: "hi" }], temperature: 0)
+        end
+
+        expect(captured_body).not_to(have_key("temperature"))
+      end
+
+      it "matches o1, o3, o4 model families too" do
+        ["o1", "o1-mini", "o3-mini", "o4"].each do |model|
+          captured_body = nil
+          stub_http_with_block do |http|
+            allow(http).to(receive(:request)) do |req|
+              captured_body = JSON.parse(req.body)
+              http_response
+            end
+          end
+
+          with_reasoning_model(model) do |c|
+            c.chat(messages: [{ role: "user", content: "hi" }])
+          end
+
+          expect(captured_body.key?("max_completion_tokens")).to(be(true), "expected max_completion_tokens for #{model}")
+          expect(captured_body.key?("max_tokens")).to(be(false), "expected no max_tokens for #{model}")
+        end
+      end
+
+      it "still treats gpt-4o as a legacy chat model (substring shouldn't match)" do
+        captured_body = nil
+        stub_http_with_block do |http|
+          allow(http).to(receive(:request)) do |req|
+            captured_body = JSON.parse(req.body)
+            http_response
+          end
+        end
+
+        with_reasoning_model("gpt-4o") do |c|
+          c.chat(messages: [{ role: "user", content: "hi" }])
+        end
+
+        expect(captured_body).to(have_key("max_tokens"))
+        expect(captured_body).to(have_key("temperature"))
+      end
+    end
+
     context "when the API returns an error" do
       before do
         body = { "error" => { "message" => "Rate limit exceeded" } }.to_json
