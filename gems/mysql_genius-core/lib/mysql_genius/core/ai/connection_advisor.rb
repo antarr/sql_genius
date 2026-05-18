@@ -32,6 +32,10 @@ module MysqlGenius
         end
 
         def call
+          if @connection.server_version.postgresql?
+            raise Core::UnsupportedDialect.for_postgresql("Connection Pressure Advisor")
+          end
+
           variables = fetch_variables
           status = fetch_status
 

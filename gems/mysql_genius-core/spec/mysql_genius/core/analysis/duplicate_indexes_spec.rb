@@ -86,5 +86,31 @@ RSpec.describe(MysqlGenius::Core::Analysis::DuplicateIndexes) do
 
       expect(result.length).to(eq(1))
     end
+
+    it "includes a MySQL ALTER TABLE drop_sql by default" do
+      connection.stub_tables(["users"])
+      connection.stub_indexes_for("users", [
+        idx("index_users_on_email", ["email"]),
+        idx("index_users_on_email_and_name", ["email", "name"]),
+      ])
+
+      result = analysis.call
+      expect(result.first[:drop_sql]).to(eq("ALTER TABLE `users` DROP INDEX `index_users_on_email`;"))
+    end
+
+    context "with a PostgreSQL connection" do
+      before { connection.stub_server_version("PostgreSQL 16.1") }
+
+      it "includes a PostgreSQL DROP INDEX drop_sql with double-quoted identifier" do
+        connection.stub_tables(["users"])
+        connection.stub_indexes_for("users", [
+          idx("index_users_on_email", ["email"]),
+          idx("index_users_on_email_and_name", ["email", "name"]),
+        ])
+
+        result = analysis.call
+        expect(result.first[:drop_sql]).to(eq(%(DROP INDEX IF EXISTS "index_users_on_email";)))
+      end
+    end
   end
 end

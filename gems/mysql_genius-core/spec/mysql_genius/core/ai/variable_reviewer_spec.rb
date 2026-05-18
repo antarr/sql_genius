@@ -86,4 +86,14 @@ RSpec.describe(MysqlGenius::Core::Ai::VariableReviewer) do
     result = reviewer.call
     expect(result).to(eq({ "findings" => "increase buffer pool" }))
   end
+
+  context "with a PostgreSQL connection" do
+    before { connection.stub_server_version("PostgreSQL 16.1") }
+
+    it "raises UnsupportedDialect with a clear message" do
+      expect { reviewer.call }.to(
+        raise_error(MysqlGenius::Core::UnsupportedDialect, %r{MySQL/MariaDB-only}),
+      )
+    end
+  end
 end

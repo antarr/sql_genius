@@ -53,6 +53,10 @@ module MysqlGenius
         end
 
         def call
+          if @connection.server_version.postgresql?
+            raise Core::UnsupportedDialect.for_postgresql("Variable Config Reviewer")
+          end
+
           variables = fetch_variables
           status = fetch_status
 

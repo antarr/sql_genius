@@ -111,4 +111,14 @@ RSpec.describe(MysqlGenius::Core::Ai::InnodbInterpreter) do
     result = interpreter.call
     expect(result).to(eq({ "findings" => "InnoDB looks healthy" }))
   end
+
+  context "with a PostgreSQL connection" do
+    before { connection.stub_server_version("PostgreSQL 16.1") }
+
+    it "raises UnsupportedDialect" do
+      expect { interpreter.call }.to(
+        raise_error(MysqlGenius::Core::UnsupportedDialect, %r{MySQL/MariaDB-only}),
+      )
+    end
+  end
 end

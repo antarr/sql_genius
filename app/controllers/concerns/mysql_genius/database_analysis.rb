@@ -22,14 +22,14 @@ module MysqlGenius
       queries = MysqlGenius::Core::Analysis::QueryStats.new(rails_connection).call(sort: sort, limit: limit)
       render(json: queries)
     rescue ActiveRecord::StatementInvalid => e
-      render(json: { error: "Query statistics require performance_schema to be enabled. #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
+      render(json: { error: "#{query_stats_source_name} #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
     end
 
     def unused_indexes
       indexes = MysqlGenius::Core::Analysis::UnusedIndexes.new(rails_connection).call
       render(json: indexes)
     rescue ActiveRecord::StatementInvalid => e
-      render(json: { error: "Unused index detection requires performance_schema. #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
+      render(json: { error: "#{unused_indexes_source_name} #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
     end
 
     def server_overview
@@ -37,6 +37,24 @@ module MysqlGenius
       render(json: overview)
     rescue => e
       render(json: { error: "Failed to load server overview: #{e.message}" }, status: :unprocessable_entity)
+    end
+
+    private
+
+    def query_stats_source_name
+      if rails_connection.server_version.postgresql?
+        "Query statistics require the pg_stat_statements extension to be installed."
+      else
+        "Query statistics require performance_schema to be enabled."
+      end
+    end
+
+    def unused_indexes_source_name
+      if rails_connection.server_version.postgresql?
+        "Unused index detection requires pg_stat_user_indexes (always available on PostgreSQL — check connection)."
+      else
+        "Unused index detection requires performance_schema."
+      end
     end
   end
 end

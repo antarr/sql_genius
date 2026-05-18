@@ -3,8 +3,11 @@
 ## Unreleased
 
 ### Added
-- **PostgreSQL support.** Core analyses (`TableSizes`, `QueryStats`, `UnusedIndexes`, `ServerOverview`, `StatsCollector`) now work against PostgreSQL in addition to MySQL/MariaDB. Dialect selection is automatic, driven by `Core::ServerInfo#dialect`.
+- **PostgreSQL support.** Core analyses (`TableSizes`, `QueryStats`, `UnusedIndexes`, `ServerOverview`, `StatsCollector`, `DuplicateIndexes`) now work against PostgreSQL in addition to MySQL/MariaDB. Dialect selection is automatic, driven by `Core::ServerInfo#dialect`.
 - `MysqlGenius::Core::QueryBuilders` — dialect-aware SQL generation layer with two builders (`Mysql` covering both MySQL and MariaDB, `Postgresql`). Analysis classes delegate SQL generation to a builder chosen from `connection.server_version.dialect`.
+- `MysqlGenius::Core::Analysis::QueryHistory` — fetches a single statement's aggregated stats by its digest/queryid (used by the query detail page). Dialect-aware: reads `performance_schema.events_statements_summary_by_digest` on MySQL, `pg_stat_statements` on PostgreSQL.
+- `MysqlGenius::Core::Analysis::DuplicateIndexes` now includes a `drop_sql` field in each result hash (`ALTER TABLE ... DROP INDEX` on MySQL, `DROP INDEX IF EXISTS "..."` on PostgreSQL) so callers don't have to assemble the DROP statement themselves.
+- `MysqlGenius::Core::UnsupportedDialect` — error class raised by AI services that don't have a PostgreSQL equivalent (`VariableReviewer`, `ConnectionAdvisor`, `InnodbInterpreter`). Carries a clear "is MySQL/MariaDB-only and is not available on PostgreSQL" message.
 - `Core::ServerInfo` recognises `:postgresql` as a vendor and exposes `#postgresql?` and `#dialect` (returns `:mysql` for MySQL/MariaDB, `:postgresql` for PG).
 - `Core::QueryRunner` issues `SET statement_timeout = ms` (and resets to 0 in an `ensure` block) on PostgreSQL connections; recognises `canceling statement due to statement timeout` as a timeout error.
 - `Core::SqlValidator` blocks PostgreSQL system schemas (`pg_catalog`, `pg_toast`, `pg_temp`) when connected to PG; identifier extraction now handles double-quoted names in addition to backticks.

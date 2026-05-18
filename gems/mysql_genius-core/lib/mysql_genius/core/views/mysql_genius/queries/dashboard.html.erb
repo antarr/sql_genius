@@ -918,7 +918,7 @@
       if (!data || !data.length) { show(el('dup-empty')); el('dup-count').textContent = '0'; return; }
       el('dup-count').textContent = data.length + ' found';
       el('dup-tbody').innerHTML = data.map(function(d) {
-        var dropSql = 'ALTER TABLE `' + d.table + '` DROP INDEX `' + d.duplicate_index + '`;';
+        var dropSql = d.drop_sql || ('ALTER TABLE `' + d.table + '` DROP INDEX `' + d.duplicate_index + '`;');
         return '<tr>' +
           '<td><strong>' + escHtml(d.table) + '</strong></td>' +
           '<td><code>' + escHtml(d.duplicate_index) + '</code>' + (d.unique ? ' <span class="mg-badge mg-badge-warning">UNIQUE</span>' : '') + '</td>' +

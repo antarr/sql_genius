@@ -89,4 +89,14 @@ RSpec.describe(MysqlGenius::Core::Ai::ConnectionAdvisor) do
     result = advisor.call
     expect(result).to(eq({ "diagnosis" => "reduce max_connections to 100" }))
   end
+
+  context "with a PostgreSQL connection" do
+    before { connection.stub_server_version("PostgreSQL 16.1") }
+
+    it "raises UnsupportedDialect" do
+      expect { advisor.call }.to(
+        raise_error(MysqlGenius::Core::UnsupportedDialect, %r{MySQL/MariaDB-only}),
+      )
+    end
+  end
 end

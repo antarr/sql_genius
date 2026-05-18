@@ -16,6 +16,10 @@ module MysqlGenius
         end
 
         def call
+          if @connection.server_version.postgresql?
+            raise Core::UnsupportedDialect.for_postgresql("InnoDB Health Interpreter")
+          end
+
           status_text = fetch_innodb_status
           metrics = fetch_innodb_metrics
 

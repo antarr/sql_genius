@@ -25,7 +25,7 @@ module MysqlGenius
         end
 
         def server_version
-          Core::ServerInfo.parse(@ar.select_value("SELECT VERSION()").to_s)
+          @server_version ||= Core::ServerInfo.parse(@ar.select_value("SELECT VERSION()").to_s)
         end
 
         def current_database

@@ -3,11 +3,19 @@
 ## Unreleased
 
 ### Added
-- **PostgreSQL support.** The dashboard's core analyses (table sizes, query stats, unused indexes, server overview) now run against PostgreSQL in addition to MySQL/MariaDB. Dialect is detected automatically from the `ActiveRecord::Base.connection`. PostgreSQL query stats require the `pg_stat_statements` extension.
-- See `mysql_genius-core` Unreleased for the full set of dialect-aware additions (query builders, PostgreSQL system-schema blocking, `SET statement_timeout` enforcement).
+- **PostgreSQL support across the Rails dashboard.** Core analyses (table sizes, query stats, unused indexes, server overview, duplicate indexes, query history) plus the Rails-side query detail page now run against PostgreSQL in addition to MySQL/MariaDB. Dialect is detected automatically from the `ActiveRecord::Base.connection`.
+- Duplicate index DROP statements come from the backend (dialect-aware) instead of being assembled in JavaScript with MySQL backtick syntax; the dashboard JS now uses `d.drop_sql` from the response.
+- Friendly error messages in `DatabaseAnalysis` reflect the actual stats source (`pg_stat_statements` on PG, `performance_schema` on MySQL/MariaDB).
+- MySQL-only AI features (`root_cause`, `anomaly_detection`, `variable_review`, `connection_advisor`, `innodb_health`) return a clear "MySQL/MariaDB-only" error on PostgreSQL instead of leaking raw `PG::SyntaxError` exceptions.
+- See `mysql_genius-core` Unreleased for the full set of dialect-aware additions (query builders, `QueryHistory` analysis, `UnsupportedDialect` error class, PostgreSQL system-schema blocking, `SET statement_timeout` enforcement).
+
+### Changed
+- `ActiveRecordAdapter#server_version` is memoized — dialect detection runs `SELECT VERSION()` at most once per adapter instance.
+- Cosmetic view text in the Tables, Query Stats, and Unused Indexes tab headers no longer references MySQL-specific source tables.
 
 ### Notes
-- MySQL-specific features remain MySQL-only and are hidden/no-op on PostgreSQL: slow query log capture, `SHOW ENGINE INNODB STATUS` interpretation, and other AI tools that read MySQL-specific server commands.
+- PostgreSQL query stats require the `pg_stat_statements` extension to be installed and enabled (`shared_preload_libraries`).
+- Slow query log capture remains MySQL-only (no equivalent capture mechanism exists yet for PG slow logs).
 
 ## 0.8.1
 

@@ -130,6 +130,37 @@ module MysqlGenius
           %(DROP INDEX IF EXISTS "#{index_name.to_s.gsub('"', '""')}";)
         end
 
+        def query_history(connection, digest:)
+          quoted_digest = connection.quote(digest)
+          quoted_db = connection.quote(connection.current_database)
+          <<~SQL
+            SELECT query AS "DIGEST_TEXT",
+                   calls AS calls,
+                   ROUND(total_exec_time::numeric, 2) AS total_time_ms,
+                   ROUND(mean_exec_time::numeric, 2) AS avg_time_ms,
+                   ROUND(max_exec_time::numeric, 2) AS max_time_ms,
+                   rows AS rows_examined,
+                   rows AS rows_sent,
+                   NULL AS "FIRST_SEEN",
+                   NULL AS "LAST_SEEN"
+            FROM pg_stat_statements s
+            JOIN pg_database d ON d.oid = s.dbid
+            WHERE queryid::text = #{quoted_digest}
+              AND d.datname = #{quoted_db}
+            LIMIT 1
+          SQL
+        end
+
+        def digest_text_lookup(connection, digest:)
+          quoted_digest = connection.quote(digest)
+          <<~SQL
+            SELECT query
+            FROM pg_stat_statements
+            WHERE queryid::text = #{quoted_digest}
+            LIMIT 1
+          SQL
+        end
+
         def digest_column_available?(_connection)
           # pg_stat_statements always exposes queryid; treat as a stable digest.
           true

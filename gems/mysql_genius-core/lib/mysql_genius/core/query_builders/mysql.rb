@@ -114,6 +114,36 @@ module MysqlGenius
           "ALTER TABLE `#{table}` DROP INDEX `#{index_name}`;"
         end
 
+        def query_history(connection, digest:)
+          quoted_digest = connection.quote(digest)
+          quoted_db = connection.quote(connection.current_database)
+          <<~SQL
+            SELECT DIGEST_TEXT,
+                   COUNT_STAR AS calls,
+                   ROUND(SUM_TIMER_WAIT / 1000000000.0, 2) AS total_time_ms,
+                   ROUND(AVG_TIMER_WAIT / 1000000000.0, 2) AS avg_time_ms,
+                   ROUND(MAX_TIMER_WAIT / 1000000000.0, 2) AS max_time_ms,
+                   SUM_ROWS_EXAMINED AS rows_examined,
+                   SUM_ROWS_SENT AS rows_sent,
+                   FIRST_SEEN,
+                   LAST_SEEN
+            FROM performance_schema.events_statements_summary_by_digest
+            WHERE DIGEST = #{quoted_digest}
+              AND SCHEMA_NAME = #{quoted_db}
+            LIMIT 1
+          SQL
+        end
+
+        def digest_text_lookup(connection, digest:)
+          quoted_digest = connection.quote(digest)
+          <<~SQL
+            SELECT DIGEST_TEXT
+            FROM performance_schema.events_statements_summary_by_digest
+            WHERE DIGEST = #{quoted_digest}
+            LIMIT 1
+          SQL
+        end
+
         def digest_column_available?(connection)
           result = connection.exec_query(
             "SELECT COLUMN_NAME FROM information_schema.COLUMNS " \

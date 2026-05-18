@@ -11,6 +11,17 @@ module MysqlGenius
   module Core
     class Error < StandardError; end
 
+    # Raised by AI services / analyses that don't support the connected
+    # database's dialect (e.g. InnoDB-only interpreters on PostgreSQL).
+    # Callers surface the message verbatim to the UI.
+    class UnsupportedDialect < Error
+      class << self
+        def for_postgresql(feature_name)
+          new("#{feature_name} is MySQL/MariaDB-only and is not available on PostgreSQL.")
+        end
+      end
+    end
+
     class << self
       # Absolute path to the shared ERB template directory. Adapters
       # register this path with their view loader:
@@ -56,6 +67,7 @@ require "mysql_genius/core/analysis/server_overview"
 require "mysql_genius/core/analysis/columns"
 require "mysql_genius/core/analysis/stats_history"
 require "mysql_genius/core/analysis/stats_collector"
+require "mysql_genius/core/analysis/query_history"
 require "mysql_genius/core/execution_result"
 require "mysql_genius/core/query_runner/config"
 require "mysql_genius/core/query_runner"

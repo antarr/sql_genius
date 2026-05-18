@@ -19,6 +19,7 @@ module MysqlGenius
         def initialize(connection, blocked_tables:)
           @connection = connection
           @blocked_tables = blocked_tables
+          @builder = QueryBuilders.for(connection)
         end
 
         def call
@@ -40,6 +41,7 @@ module MysqlGenius
                   covered_by_index: other.name,
                   covered_by_columns: other.columns,
                   unique: idx.unique,
+                  drop_sql: @builder.drop_index_sql(table: table, index_name: idx.name),
                 }
               end
             end

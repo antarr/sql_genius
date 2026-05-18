@@ -55,7 +55,25 @@ module FakeConnectionHelper
       end
     end
 
-    allow(connection).to(receive(:select_value).and_return(select_value)) if select_value
+    # Stub select_value:
+    # - Explicit override (specs that pass select_value:) wins for any input.
+    # - SELECT VERSION() default-returns "8.0.35" so the AR adapter's dialect
+    #   detection works for specs that don't otherwise care.
+    # - Other select_value calls fall through to the exec_query matchers so a
+    #   single `exec_query: { /regex/ => fake_result }` entry serves both code
+    #   paths (the core uses select_value for single-value lookups internally).
+    if select_value
+      allow(connection).to(receive(:select_value).and_return(select_value))
+    else
+      allow(connection).to(receive(:select_value)) do |sql|
+        if sql.to_s.include?("VERSION()")
+          "8.0.35"
+        else
+          match = matchers.find { |pat, _| pat.is_a?(Regexp) ? sql =~ pat : sql == pat }
+          match ? match[1].rows.first&.first : nil
+        end
+      end
+    end
     allow(connection).to(receive(:quote) { |v| "'#{v}'" })
     allow(connection).to(receive(:quote_table_name) { |n| "`#{n}`" })
     allow(connection).to(receive_messages(tables: tables, current_database: current_database, indexes: indexes, primary_key: primary_key))
