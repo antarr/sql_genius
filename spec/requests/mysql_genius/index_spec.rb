@@ -33,4 +33,14 @@ RSpec.describe("GET /mysql_genius/", type: :request) do
     expect(last_response.body).to(match(/<optgroup label="Featured">.*<option value="users">/m))
     expect(last_response.body).to(include('<optgroup label="All Tables">'))
   end
+
+  it "renders the query_detail link prefix with the engine mount, not a bare /queries/" do
+    # Regression guard: query stats rows generate <a href> links from the
+    # JS ROUTES.query_detail prefix. If that prefix is hardcoded to
+    # '/queries/' it bypasses the engine mount and 404s in the host app.
+    get "/mysql_genius/"
+    expect(last_response).to(be_ok)
+    expect(last_response.body).to(include("query_detail: '/mysql_genius/queries/'"))
+    expect(last_response.body).not_to(include("query_detail: '/queries/'"))
+  end
 end

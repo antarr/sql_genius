@@ -68,7 +68,7 @@
     innodb_health: '<%= path_for(:innodb_health) %>',
     index_planner: '<%= path_for(:index_planner) %>',
     pattern_grouper: '<%= path_for(:pattern_grouper) %>',
-    query_detail: '/queries/'
+    query_detail: '<%= mysql_genius.root_path %>queries/'
   };
 
   var RAILS_MIGRATION_VERSION = '<%= @framework_version_major %>.<%= @framework_version_minor %>';
