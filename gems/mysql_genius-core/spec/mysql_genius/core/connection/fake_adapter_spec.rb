@@ -67,6 +67,12 @@ RSpec.describe(MysqlGenius::Core::Connection::FakeAdapter) do
 
       expect(adapter.server_version.vendor).to(eq(:mariadb))
     end
+
+    it "detects PostgreSQL" do
+      adapter.stub_server_version("PostgreSQL 16.1 on x86_64-pc-linux-gnu")
+
+      expect(adapter.server_version.vendor).to(eq(:postgresql))
+    end
   end
 
   describe "#current_database" do
@@ -96,8 +102,20 @@ RSpec.describe(MysqlGenius::Core::Connection::FakeAdapter) do
   end
 
   describe "#quote_table_name" do
-    it "wraps an identifier in backticks" do
+    it "wraps an identifier in backticks by default (MySQL)" do
       expect(adapter.quote_table_name("users")).to(eq("`users`"))
+    end
+
+    it "wraps an identifier in double quotes when stubbed as PostgreSQL" do
+      adapter.stub_server_version("PostgreSQL 16.1 on x86_64-pc-linux-gnu")
+
+      expect(adapter.quote_table_name("users")).to(eq(%("users")))
+    end
+
+    it "escapes embedded double quotes when stubbed as PostgreSQL" do
+      adapter.stub_server_version("PostgreSQL 16.1")
+
+      expect(adapter.quote_table_name(%(weird"name))).to(eq(%("weird""name")))
     end
   end
 

@@ -84,7 +84,11 @@ module MysqlGenius
         end
 
         def quote_table_name(name)
-          "`#{name}`"
+          if server_version.postgresql?
+            %("#{name.to_s.gsub('"', '""')}")
+          else
+            "`#{name}`"
+          end
         end
 
         attr_reader :tables

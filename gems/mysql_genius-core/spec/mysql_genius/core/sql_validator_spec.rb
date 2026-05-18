@@ -3,8 +3,9 @@
 RSpec.describe(MysqlGenius::Core::SqlValidator) do
   let(:blocked_tables) { ["sessions", "authentication_tokens"] }
   let(:all_tables) { ["users", "posts", "sessions", "authentication_tokens"] }
+  let(:server_info) { MysqlGenius::Core::ServerInfo.new(vendor: :mysql, version: "8.0.35") }
   let(:connection) do
-    double("connection", tables: all_tables)
+    double("connection", tables: all_tables, server_version: server_info)
   end
 
   def validate(sql)
@@ -52,6 +53,36 @@ RSpec.describe(MysqlGenius::Core::SqlValidator) do
       expect(result).to(include("system schemas"))
     end
 
+    context "with a PostgreSQL connection" do
+      let(:server_info) { MysqlGenius::Core::ServerInfo.new(vendor: :postgresql, version: "16.1") }
+
+      it "rejects queries accessing pg_catalog" do
+        result = validate("SELECT * FROM pg_catalog.pg_class")
+        expect(result).to(include("system schemas"))
+      end
+
+      it "rejects queries accessing pg_toast" do
+        result = validate("SELECT * FROM pg_toast.pg_toast_12345")
+        expect(result).to(include("system schemas"))
+      end
+
+      it "rejects queries accessing information_schema" do
+        result = validate("SELECT * FROM information_schema.tables")
+        expect(result).to(include("system schemas"))
+      end
+
+      it "does not flag references to mysql schema (PostgreSQL is not aware of it)" do
+        # `mysql` is not a PostgreSQL system schema; treat as a regular table name.
+        # The query should fall through to the FROM-clause check, which would
+        # match it against the table list (and find nothing).
+        expect(validate("SELECT * FROM mysql_logs")).to(be_nil)
+      end
+
+      it "allows SELECT against double-quoted user tables" do
+        expect(validate(%(SELECT * FROM "users"))).to(be_nil)
+      end
+    end
+
     it "strips SQL comments before validation" do
       expect(validate("SELECT * FROM users -- safe query")).to(be_nil)
     end
@@ -76,6 +107,18 @@ RSpec.describe(MysqlGenius::Core::SqlValidator) do
     it "handles backtick-quoted table names" do
       tables = described_class.extract_table_references("SELECT * FROM `users`", connection)
       expect(tables).to(include("users"))
+    end
+
+    it "handles double-quoted table names (PostgreSQL)" do
+      tables = described_class.extract_table_references(%(SELECT * FROM "users"), connection)
+      expect(tables).to(include("users"))
+    end
+
+    it "extracts double-quoted table from JOIN clause" do
+      tables = described_class.extract_table_references(
+        %(SELECT * FROM "users" JOIN "posts" ON "users"."id" = "posts"."user_id"), connection
+      )
+      expect(tables).to(include("users", "posts"))
     end
   end
 

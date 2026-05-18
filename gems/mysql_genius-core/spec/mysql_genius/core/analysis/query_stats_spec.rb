@@ -163,5 +163,88 @@ RSpec.describe(MysqlGenius::Core::Analysis::QueryStats) do
       result = analysis.call
       expect(result.first[:sql].length).to(be <= 500)
     end
+
+    context "with a PostgreSQL connection" do
+      before { connection.stub_server_version("PostgreSQL 16.1 on x86_64-pc-linux-gnu") }
+
+      let(:pg_columns) do
+        [
+          "DIGEST",
+          "DIGEST_TEXT",
+          "calls",
+          "total_time_ms",
+          "avg_time_ms",
+          "max_time_ms",
+          "rows_examined",
+          "rows_sent",
+          "tmp_disk_tables",
+          "sort_rows",
+          "FIRST_SEEN",
+          "LAST_SEEN",
+        ]
+      end
+
+      it "queries pg_stat_statements" do
+        captured_sql = nil
+        connection.stub_query(/pg_stat_statements/, columns: pg_columns, rows: [])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        analysis.call
+        expect(captured_sql).to(include("pg_stat_statements"))
+        expect(captured_sql).not_to(include("performance_schema"))
+      end
+
+      it "transforms pg_stat_statements rows into the same output schema as MySQL" do
+        connection.stub_query(
+          /pg_stat_statements/,
+          columns: pg_columns,
+          rows: [["9876543210", "SELECT * FROM users WHERE id = $1", 42, 100.5, 2.4, 10.1, 200, 42, 0, 0, nil, nil]],
+        )
+
+        result = analysis.call
+
+        expect(result.length).to(eq(1))
+        expect(result.first).to(include(
+          digest: "9876543210",
+          sql: "SELECT * FROM users WHERE id = $1",
+          calls: 42,
+          total_time_ms: 100.5,
+          avg_time_ms: 2.4,
+          max_time_ms: 10.1,
+          rows_examined: 200,
+          rows_sent: 42,
+        ))
+      end
+
+      it "maps sort=total_time to total_exec_time DESC" do
+        captured_sql = nil
+        connection.stub_query(/pg_stat_statements/, columns: pg_columns, rows: [])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        analysis.call(sort: "total_time")
+        expect(captured_sql).to(match(/ORDER BY total_exec_time DESC/))
+      end
+
+      it "maps sort=avg_time to mean_exec_time DESC" do
+        captured_sql = nil
+        connection.stub_query(/pg_stat_statements/, columns: pg_columns, rows: [])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        analysis.call(sort: "avg_time")
+        expect(captured_sql).to(match(/ORDER BY mean_exec_time DESC/))
+      end
+    end
   end
 end

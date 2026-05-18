@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **PostgreSQL support.** Core analyses (`TableSizes`, `QueryStats`, `UnusedIndexes`, `ServerOverview`, `StatsCollector`) now work against PostgreSQL in addition to MySQL/MariaDB. Dialect selection is automatic, driven by `Core::ServerInfo#dialect`.
+- `MysqlGenius::Core::QueryBuilders` — dialect-aware SQL generation layer with two builders (`Mysql` covering both MySQL and MariaDB, `Postgresql`). Analysis classes delegate SQL generation to a builder chosen from `connection.server_version.dialect`.
+- `Core::ServerInfo` recognises `:postgresql` as a vendor and exposes `#postgresql?` and `#dialect` (returns `:mysql` for MySQL/MariaDB, `:postgresql` for PG).
+- `Core::QueryRunner` issues `SET statement_timeout = ms` (and resets to 0 in an `ensure` block) on PostgreSQL connections; recognises `canceling statement due to statement timeout` as a timeout error.
+- `Core::SqlValidator` blocks PostgreSQL system schemas (`pg_catalog`, `pg_toast`, `pg_temp`) when connected to PG; identifier extraction now handles double-quoted names in addition to backticks.
+- `Core::Connection::FakeAdapter#quote_table_name` produces double-quoted identifiers when the stubbed server version is PostgreSQL.
+
+### Notes
+- PostgreSQL query stats require the `pg_stat_statements` extension. If it is not installed, the SQL will raise — behaviour mirrors MySQL when `performance_schema` is disabled.
+- On PostgreSQL the `ServerOverview` `innodb` section is populated with the closest equivalents (`shared_buffers` size, buffer cache hit rate from `pg_stat_database.blks_hit`/`blks_read`, deadlocks count). InnoDB-specific page counters are reported as 0 since PG has no direct analogue.
+
 ## 0.8.1
 
 ### Fixed

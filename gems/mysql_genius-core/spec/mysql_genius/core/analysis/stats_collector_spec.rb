@@ -150,4 +150,34 @@ RSpec.describe(MysqlGenius::Core::Analysis::StatsCollector) do
       expect(error_collector).not_to(be_running)
     end
   end
+
+  describe "with a PostgreSQL connection" do
+    let(:pg_connection) do
+      conn = MysqlGenius::Core::Connection::FakeAdapter.new
+      conn.stub_server_version("PostgreSQL 16.1")
+      conn
+    end
+    let(:pg_collector) do
+      described_class.new(connection_provider: -> { pg_connection }, history: history, interval: 60)
+    end
+
+    after { pg_collector.stop if pg_collector.running? }
+
+    it "queries pg_stat_statements instead of performance_schema" do
+      captured_sql = nil
+      pg_connection.stub_query(
+        /pg_stat_statements/,
+        columns: ["DIGEST_TEXT", "COUNT_STAR", "total_time_ms"],
+        rows: [["SELECT * FROM users", 100, 500.0]],
+      )
+      allow(pg_connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+        captured_sql = sql
+        original.call(sql, **kwargs)
+      end)
+
+      pg_collector.send(:tick)
+      expect(captured_sql).to(include("pg_stat_statements"))
+      expect(captured_sql).not_to(include("performance_schema"))
+    end
+  end
 end

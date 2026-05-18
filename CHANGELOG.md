@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **PostgreSQL support.** The dashboard's core analyses (table sizes, query stats, unused indexes, server overview) now run against PostgreSQL in addition to MySQL/MariaDB. Dialect is detected automatically from the `ActiveRecord::Base.connection`. PostgreSQL query stats require the `pg_stat_statements` extension.
+- See `mysql_genius-core` Unreleased for the full set of dialect-aware additions (query builders, PostgreSQL system-schema blocking, `SET statement_timeout` enforcement).
+
+### Notes
+- MySQL-specific features remain MySQL-only and are hidden/no-op on PostgreSQL: slow query log capture, `SHOW ENGINE INNODB STATUS` interpretation, and other AI tools that read MySQL-specific server commands.
+
 ## 0.8.1
 
 ### Fixed

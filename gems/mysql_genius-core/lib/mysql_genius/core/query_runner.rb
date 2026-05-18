@@ -5,9 +5,16 @@ require "set"
 module MysqlGenius
   module Core
     # Runs SELECT queries against a Core::Connection with SQL validation,
-    # row-limit application, timeout hints (MySQL or MariaDB flavor), and
-    # column masking. Returns a Core::ExecutionResult on success or raises
-    # a specific error class on failure.
+    # row-limit application, dialect-appropriate timeout hints, and column
+    # masking. Returns a Core::ExecutionResult on success or raises a
+    # specific error class on failure.
+    #
+    # Timeout strategy by vendor:
+    #   MySQL      — wraps SELECT with /*+ MAX_EXECUTION_TIME(ms) */ hint
+    #   MariaDB    — prefixes SQL with SET STATEMENT max_statement_time=s FOR
+    #   PostgreSQL — issues SET statement_timeout = ms before the query and
+    #                resets it to 0 in an ensure block (the server enforces
+    #                the cancel-on-timeout behaviour)
     #
     # Does NOT handle audit logging — the caller (Rails concern or future
     # desktop sidecar) is responsible for recording successful queries and
@@ -20,6 +27,7 @@ module MysqlGenius
         "max_statement_time",
         "max_execution_time",
         "Query execution was interrupted",
+        "canceling statement due to statement timeout",
       ].freeze
 
       def initialize(connection, config)
@@ -36,15 +44,10 @@ module MysqlGenius
         raise Rejected, validation_error if validation_error
 
         limited = SqlValidator.apply_row_limit(sql, row_limit)
-        timed = apply_timeout_hint(limited)
 
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        result = begin
-          @connection.exec_query(timed)
-        rescue StandardError => e
-          raise Timeout, e.message if timeout_error?(e)
-
-          raise
+        result = with_timeout do
+          @connection.exec_query(apply_timeout_hint(limited))
         end
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000).round(1)
 
@@ -61,16 +64,42 @@ module MysqlGenius
       private
 
       def apply_timeout_hint(sql)
-        if mariadb?
+        case vendor
+        when :mariadb
           timeout_seconds = @config.query_timeout_ms / 1000
           "SET STATEMENT max_statement_time=#{timeout_seconds} FOR #{sql}"
+        when :postgresql
+          # PostgreSQL timeout is set out-of-band in with_timeout; the
+          # query itself is sent unchanged.
+          sql
         else
           sql.sub(/\bSELECT\b/i, "SELECT /*+ MAX_EXECUTION_TIME(#{@config.query_timeout_ms}) */")
         end
       end
 
-      def mariadb?
-        @connection.server_version.mariadb?
+      def with_timeout
+        if vendor == :postgresql
+          @connection.exec_query("SET statement_timeout = #{@config.query_timeout_ms}")
+          begin
+            yield
+          ensure
+            begin
+              @connection.exec_query("SET statement_timeout = 0")
+            rescue StandardError
+              # If the session is already torn down we can't restore — that's fine.
+            end
+          end
+        else
+          yield
+        end
+      rescue StandardError => e
+        raise Timeout, e.message if timeout_error?(e)
+
+        raise
+      end
+
+      def vendor
+        @connection.server_version.vendor
       end
 
       def mask_rows(result)

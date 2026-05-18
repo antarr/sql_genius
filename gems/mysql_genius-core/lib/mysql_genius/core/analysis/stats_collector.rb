@@ -101,26 +101,7 @@ module MysqlGenius
         end
 
         def build_sql(connection)
-          <<~SQL
-            SELECT
-              DIGEST_TEXT,
-              COUNT_STAR,
-              ROUND(SUM_TIMER_WAIT / 1000000000, 1) AS total_time_ms
-            FROM performance_schema.events_statements_summary_by_digest
-            WHERE SCHEMA_NAME = #{connection.quote(connection.current_database)}
-              AND DIGEST_TEXT IS NOT NULL
-              AND DIGEST_TEXT NOT LIKE 'EXPLAIN%'
-              AND DIGEST_TEXT NOT LIKE '%`information_schema`%'
-              AND DIGEST_TEXT NOT LIKE '%`performance_schema`%'
-              AND DIGEST_TEXT NOT LIKE '%information_schema.%'
-              AND DIGEST_TEXT NOT LIKE '%performance_schema.%'
-              AND DIGEST_TEXT NOT LIKE 'SHOW %'
-              AND DIGEST_TEXT NOT LIKE 'SET STATEMENT %'
-              AND DIGEST_TEXT NOT LIKE 'SELECT VERSION ( )%'
-              AND DIGEST_TEXT NOT LIKE 'SELECT @@%'
-            ORDER BY SUM_TIMER_WAIT DESC
-            LIMIT #{TOP_N}
-          SQL
+          QueryBuilders.for(connection).stats_snapshot(connection, limit: TOP_N)
         end
 
         def wait_or_stop(seconds)

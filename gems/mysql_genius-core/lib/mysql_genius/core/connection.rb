@@ -20,7 +20,9 @@ module MysqlGenius
     #   #server_version                 -> Core::ServerInfo
     #   #current_database               -> String
     #   #quote(value)                   -> String (SQL-escaped value)
-    #   #quote_table_name(name)         -> String (backtick-quoted identifier)
+    #   #quote_table_name(name)         -> String (dialect-quoted identifier:
+    #                                       backticks for MySQL/MariaDB,
+    #                                       double-quotes for PostgreSQL)
     #   #tables                         -> Array<String>
     #   #columns_for(table)             -> Array<Core::ColumnDefinition>
     #   #indexes_for(table)             -> Array<Core::IndexDefinition>

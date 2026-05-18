@@ -142,5 +142,59 @@ RSpec.describe(MysqlGenius::Core::Analysis::ServerOverview) do
         expect(result[:innodb][:buffer_pool_hit_rate]).to(eq(0))
       end
     end
+
+    context "with a PostgreSQL connection" do
+      let(:connection) do
+        conn = MysqlGenius::Core::Connection::FakeAdapter.new
+        conn.stub_server_version("PostgreSQL 16.1 on x86_64-pc-linux-gnu")
+        conn.stub_current_database("app_test")
+        conn.stub_query(/SELECT version\(\)/i, columns: ["version"], rows: [["PostgreSQL 16.1 on x86_64-pc-linux-gnu, compiled by gcc"]])
+        conn.stub_query(/pg_postmaster_start_time/, columns: ["e"], rows: [[90_061]])
+
+        # connections
+        conn.stub_query(/FROM pg_settings WHERE name = 'max_connections'/, columns: ["setting"], rows: [["100"]])
+        conn.stub_query(/count\(\*\) FROM pg_stat_activity\z/m, columns: ["count"], rows: [[12]])
+        conn.stub_query(/count\(\*\) FROM pg_stat_activity WHERE state/, columns: ["count"], rows: [[3]])
+
+        # buffer cache (shared_buffers)
+        conn.stub_query(/pg_size_bytes\(current_setting/, columns: ["pg_size_bytes"], rows: [[134_217_728]])
+
+        # database stats
+        conn.stub_query(
+          /FROM pg_stat_database/,
+          columns: ["xact_commit", "xact_rollback", "blks_read", "blks_hit", "temp_files", "deadlocks"],
+          rows: [[900_000, 1_000, 10_000, 990_000, 5, 2]],
+        )
+        conn
+      end
+
+      it "reports the server version as PostgreSQL" do
+        result = analysis.call
+        expect(result[:server][:version]).to(include("PostgreSQL"))
+        expect(result[:server][:uptime_seconds]).to(eq(90_061))
+        expect(result[:server][:uptime]).to(eq("1d 1h 1m"))
+      end
+
+      it "reports connection counts from pg_stat_activity and max_connections" do
+        result = analysis.call
+        expect(result[:connections][:max]).to(eq(100))
+        expect(result[:connections][:current]).to(eq(12))
+        expect(result[:connections][:usage_pct]).to(eq(12.0))
+        expect(result[:connections][:threads_running]).to(eq(3))
+      end
+
+      it "maps shared_buffers and blks_hit ratio into the innodb block" do
+        result = analysis.call
+        expect(result[:innodb][:buffer_pool_mb]).to(eq(128.0))
+        expect(result[:innodb][:buffer_pool_hit_rate]).to(eq(99.0))
+        expect(result[:innodb][:row_lock_waits]).to(eq(2)) # deadlocks
+      end
+
+      it "computes qps from committed + rolled-back transactions over uptime" do
+        result = analysis.call
+        expect(result[:queries][:questions]).to(eq(901_000))
+        expect(result[:queries][:qps]).to(eq(10.0))
+      end
+    end
   end
 end

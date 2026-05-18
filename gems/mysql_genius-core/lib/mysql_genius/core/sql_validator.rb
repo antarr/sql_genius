@@ -5,6 +5,9 @@ module MysqlGenius
     module SqlValidator
       FORBIDDEN_KEYWORDS = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "GRANT", "REVOKE"].freeze
 
+      MYSQL_SYSTEM_SCHEMAS = ["information_schema", "mysql", "performance_schema", "sys"].freeze
+      POSTGRESQL_SYSTEM_SCHEMAS = ["information_schema", "pg_catalog", "pg_toast", "pg_temp"].freeze
+
       extend self
 
       def validate(sql, blocked_tables:, connection:)
@@ -16,7 +19,10 @@ module MysqlGenius
           return "Only SELECT queries are allowed."
         end
 
-        return "Access to system schemas is not allowed." if normalized.match?(/\b(information_schema|mysql|performance_schema|sys)\b/i)
+        system_schemas = system_schemas_for(connection)
+        if normalized.match?(/\b(#{system_schemas.join("|")})\b/i)
+          return "Access to system schemas is not allowed."
+        end
 
         FORBIDDEN_KEYWORDS.each do |keyword|
           return "#{keyword} statements are not allowed." if normalized.match?(/\b#{keyword}\b/i)
@@ -33,9 +39,11 @@ module MysqlGenius
 
       def extract_table_references(sql, connection)
         tables = []
-        sql.scan(/\bFROM\s+((?:`?\w+`?(?:\s*,\s*`?\w+`?)*)+)/i) { |m| m[0].scan(/`?(\w+)`?/) { |t| tables << t[0] } }
-        sql.scan(/\bJOIN\s+`?(\w+)`?/i) { |m| tables << m[0] }
-        sql.scan(/\b(?:INTO|UPDATE)\s+`?(\w+)`?/i) { |m| tables << m[0] }
+        sql.scan(/\bFROM\s+((?:["`]?\w+["`]?(?:\s*,\s*["`]?\w+["`]?)*)+)/i) do |m|
+          m[0].scan(/["`]?(\w+)["`]?/) { |t| tables << t[0] }
+        end
+        sql.scan(/\bJOIN\s+["`]?(\w+)["`]?/i) { |m| tables << m[0] }
+        sql.scan(/\b(?:INTO|UPDATE)\s+["`]?(\w+)["`]?/i) { |m| tables << m[0] }
         tables.uniq.map(&:downcase) & connection.tables
       end
 
@@ -53,6 +61,14 @@ module MysqlGenius
 
       def masked_column?(column_name, patterns)
         patterns.any? { |pattern| column_name.downcase.include?(pattern) }
+      end
+
+      def system_schemas_for(connection)
+        return MYSQL_SYSTEM_SCHEMAS unless connection.respond_to?(:server_version)
+
+        connection.server_version.postgresql? ? POSTGRESQL_SYSTEM_SCHEMAS : MYSQL_SYSTEM_SCHEMAS
+      rescue StandardError
+        MYSQL_SYSTEM_SCHEMAS
       end
     end
   end

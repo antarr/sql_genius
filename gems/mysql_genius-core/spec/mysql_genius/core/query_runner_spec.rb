@@ -145,6 +145,66 @@ RSpec.describe(MysqlGenius::Core::QueryRunner) do
         .to(raise_error(MysqlGenius::Core::QueryRunner::Timeout))
     end
 
+    context "with a PostgreSQL connection" do
+      before { connection.stub_server_version("PostgreSQL 16.1 on x86_64-pc-linux-gnu") }
+
+      it "issues SET statement_timeout before the query and resets it afterwards" do
+        executed_sql = []
+        connection.stub_query(/SELECT id FROM users/i, columns: ["id"], rows: [])
+        connection.stub_query(/SET statement_timeout/, columns: [], rows: [])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          executed_sql << sql
+          original.call(sql, **kwargs)
+        end)
+
+        runner.run("SELECT id FROM users", row_limit: 25)
+
+        expect(executed_sql.first).to(eq("SET statement_timeout = 30000"))
+        expect(executed_sql.last).to(eq("SET statement_timeout = 0"))
+        expect(executed_sql.any? { |s| s.match?(/SELECT id FROM users/) }).to(be(true))
+      end
+
+      it "does not wrap SELECT with MAX_EXECUTION_TIME hint" do
+        captured_select = nil
+        connection.stub_query(/SET statement_timeout/, columns: [], rows: [])
+        connection.stub_query(/SELECT id FROM users/i, columns: ["id"], rows: [])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_select = sql if sql.match?(/SELECT id FROM users/i)
+          original.call(sql, **kwargs)
+        end)
+
+        runner.run("SELECT id FROM users", row_limit: 25)
+        expect(captured_select).not_to(include("MAX_EXECUTION_TIME"))
+      end
+
+      it "resets statement_timeout even when the query raises" do
+        executed_sql = []
+        connection.stub_query(/SET statement_timeout/, columns: [], rows: [])
+        connection.stub_query(/SELECT id FROM users/i, raises: StandardError.new("boom"))
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          executed_sql << sql
+          original.call(sql, **kwargs)
+        end)
+
+        expect { runner.run("SELECT id FROM users", row_limit: 25) }.to(raise_error(StandardError, "boom"))
+        expect(executed_sql.last).to(eq("SET statement_timeout = 0"))
+      end
+
+      it "raises Timeout for the PostgreSQL statement timeout cancellation message" do
+        connection.stub_query(/SET statement_timeout/, columns: [], rows: [])
+        connection.stub_query(
+          /SELECT id FROM users/i,
+          raises: StandardError.new("PG::QueryCanceled: ERROR:  canceling statement due to statement timeout"),
+        )
+
+        expect { runner.run("SELECT id FROM users", row_limit: 25) }
+          .to(raise_error(MysqlGenius::Core::QueryRunner::Timeout))
+      end
+    end
+
     it "propagates non-timeout database errors" do
       connection.stub_query(
         /SELECT/,

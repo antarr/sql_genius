@@ -3,36 +3,22 @@
 module MysqlGenius
   module Core
     module Analysis
-      # Queries information_schema.tables for data/index/fragmentation metrics
-      # per BASE TABLE in the current database, plus an exact SELECT COUNT(*)
-      # for each table. Returns an array of hashes suitable for JSON rendering.
+      # Returns size/fragmentation metrics for each user table in the current
+      # database, plus an exact SELECT COUNT(*) for each table. Delegates SQL
+      # generation to the dialect-appropriate QueryBuilder so the same class
+      # works against MySQL/MariaDB (information_schema.tables) and PostgreSQL
+      # (pg_class + pg_total_relation_size).
       #
-      # Takes a Core::Connection. No configuration required — the current
-      # database is read from connection.current_database.
+      # Takes a Core::Connection. Returns an array of hashes suitable for
+      # JSON rendering.
       class TableSizes
         def initialize(connection)
           @connection = connection
+          @builder = QueryBuilders.for(connection)
         end
 
         def call
-          db_name = @connection.current_database
-
-          result = @connection.exec_query(<<~SQL)
-            SELECT
-              table_name,
-              engine,
-              table_collation,
-              auto_increment,
-              update_time,
-              ROUND(data_length / 1024 / 1024, 2) AS data_mb,
-              ROUND(index_length / 1024 / 1024, 2) AS index_mb,
-              ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb,
-              ROUND(data_free / 1024 / 1024, 2) AS fragmented_mb
-            FROM information_schema.tables
-            WHERE table_schema = #{@connection.quote(db_name)}
-              AND table_type = 'BASE TABLE'
-            ORDER BY (data_length + index_length) DESC
-          SQL
+          result = @connection.exec_query(@builder.table_sizes(@connection))
 
           result.to_hashes.map do |row|
             table_name = row["table_name"] || row["TABLE_NAME"]

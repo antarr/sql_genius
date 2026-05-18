@@ -66,5 +66,29 @@ RSpec.describe(MysqlGenius::Core::Analysis::UnusedIndexes) do
       expect(result[:writes]).to(eq(0))
       expect(result[:table_rows]).to(eq(0))
     end
+
+    context "with a PostgreSQL connection" do
+      before { connection.stub_server_version("PostgreSQL 16.1") }
+
+      it "queries pg_stat_user_indexes and produces DROP INDEX SQL with double-quoted name" do
+        connection.stub_query(
+          /pg_stat_user_indexes/,
+          columns: columns,
+          rows: [["public", "users", "idx_users_on_legacy", 0, 500, 10_000]],
+        )
+
+        result = analysis.call
+
+        expect(result.length).to(eq(1))
+        expect(result.first).to(include(
+          table: "users",
+          index_name: "idx_users_on_legacy",
+          reads: 0,
+          writes: 500,
+          table_rows: 10_000,
+          drop_sql: %(DROP INDEX IF EXISTS "idx_users_on_legacy";),
+        ))
+      end
+    end
   end
 end

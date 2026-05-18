@@ -3,74 +3,38 @@
 module MysqlGenius
   module Core
     module Analysis
-      # Queries performance_schema.events_statements_summary_by_digest for
-      # the top statements by a given sort dimension, excluding noise
-      # (internal schema queries, EXPLAIN, SHOW, SET STATEMENT, etc.).
-      # Returns an array of per-digest hashes with call counts, timing
-      # percentiles, row examine/sent ratios, and temp-table metadata.
+      # Top statements by a given sort dimension, sourced from MySQL's
+      # performance_schema.events_statements_summary_by_digest or PostgreSQL's
+      # pg_stat_statements (whichever the connected server provides). Returns
+      # an array of per-digest hashes with call counts, timing percentiles,
+      # row examine/sent ratios, and temp-table metadata.
       #
-      # If performance_schema is not enabled, the underlying exec_query
-      # call will raise — the caller decides how to render that.
+      # If the underlying stats source is not enabled, the SQL exec will
+      # raise — the caller decides how to render that.
       class QueryStats
         VALID_SORTS = ["total_time", "avg_time", "calls", "rows_examined"].freeze
         MAX_LIMIT = 50
 
         def initialize(connection)
           @connection = connection
+          @builder = QueryBuilders.for(connection)
         end
 
         def call(sort: "total_time", limit: MAX_LIMIT)
-          order_clause = order_clause_for(sort)
+          order_clause = @builder.query_stats_order_clause(sort)
           effective_limit = limit.to_i.clamp(1, MAX_LIMIT)
 
-          result = @connection.exec_query(build_sql(order_clause, effective_limit))
+          sql = @builder.query_stats(
+            @connection,
+            order_clause: order_clause,
+            limit: effective_limit,
+            include_digest: digest_column_available?,
+          )
+          result = @connection.exec_query(sql)
           result.to_hashes.map { |row| transform(row) }
         end
 
         private
-
-        def order_clause_for(sort)
-          case sort
-          when "total_time"    then "SUM_TIMER_WAIT DESC"
-          when "avg_time"      then "AVG_TIMER_WAIT DESC"
-          when "calls"         then "COUNT_STAR DESC"
-          when "rows_examined" then "SUM_ROWS_EXAMINED DESC"
-          else "SUM_TIMER_WAIT DESC"
-          end
-        end
-
-        def build_sql(order_clause, limit)
-          digest_col = digest_column_available? ? "DIGEST," : ""
-          <<~SQL
-            SELECT
-              #{digest_col}
-              DIGEST_TEXT,
-              COUNT_STAR AS calls,
-              ROUND(SUM_TIMER_WAIT / 1000000000, 1) AS total_time_ms,
-              ROUND(AVG_TIMER_WAIT / 1000000000, 1) AS avg_time_ms,
-              ROUND(MAX_TIMER_WAIT / 1000000000, 1) AS max_time_ms,
-              SUM_ROWS_EXAMINED AS rows_examined,
-              SUM_ROWS_SENT AS rows_sent,
-              SUM_CREATED_TMP_DISK_TABLES AS tmp_disk_tables,
-              SUM_SORT_ROWS AS sort_rows,
-              FIRST_SEEN,
-              LAST_SEEN
-            FROM performance_schema.events_statements_summary_by_digest
-            WHERE SCHEMA_NAME = #{@connection.quote(@connection.current_database)}
-              AND DIGEST_TEXT IS NOT NULL
-              AND DIGEST_TEXT NOT LIKE 'EXPLAIN%'
-              AND DIGEST_TEXT NOT LIKE '%`information_schema`%'
-              AND DIGEST_TEXT NOT LIKE '%`performance_schema`%'
-              AND DIGEST_TEXT NOT LIKE '%information_schema.%'
-              AND DIGEST_TEXT NOT LIKE '%performance_schema.%'
-              AND DIGEST_TEXT NOT LIKE 'SHOW %'
-              AND DIGEST_TEXT NOT LIKE 'SET STATEMENT %'
-              AND DIGEST_TEXT NOT LIKE 'SELECT VERSION ( )%'
-              AND DIGEST_TEXT NOT LIKE 'SELECT @@%'
-            ORDER BY #{order_clause}
-            LIMIT #{limit}
-          SQL
-        end
 
         def transform(row)
           digest = (row["DIGEST_TEXT"] || row["digest_text"] || "").to_s
@@ -104,15 +68,7 @@ module MysqlGenius
         def digest_column_available?
           return @digest_available if defined?(@digest_available)
 
-          result = @connection.exec_query(
-            "SELECT COLUMN_NAME FROM information_schema.COLUMNS " \
-            "WHERE TABLE_SCHEMA = 'performance_schema' " \
-            "AND TABLE_NAME = 'events_statements_summary_by_digest' " \
-            "AND COLUMN_NAME = 'DIGEST'",
-          )
-          @digest_available = !result.rows.empty?
-        rescue StandardError
-          @digest_available = false
+          @digest_available = @builder.digest_column_available?(@connection)
         end
       end
     end

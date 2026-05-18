@@ -123,5 +123,51 @@ RSpec.describe(MysqlGenius::Core::Analysis::TableSizes) do
 
       expect(analysis.call.first[:needs_optimize]).to(be(false))
     end
+
+    context "with a PostgreSQL connection" do
+      before { connection.stub_server_version("PostgreSQL 16.1 on x86_64-pc-linux-gnu") }
+
+      it "queries pg_class instead of information_schema.tables" do
+        captured = nil
+        connection.stub_query(
+          /pg_class/i,
+          columns: ["table_name", "engine", "table_collation", "auto_increment", "update_time", "data_mb", "index_mb", "total_mb", "fragmented_mb"],
+          rows: [["users", nil, nil, nil, nil, 1.5, 0.5, 2.0, 0.0]],
+        )
+        connection.stub_query(/SELECT COUNT.*FROM "users"/, columns: ["count"], rows: [[42]])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured = sql if sql.match?(/FROM pg_class|FROM information_schema/i)
+          original.call(sql, **kwargs)
+        end)
+
+        result = analysis.call
+        expect(captured).to(include("pg_class"))
+        expect(captured).not_to(include("information_schema.tables"))
+        expect(result.first).to(include(table: "users", rows: 42, total_mb: 2.0))
+      end
+
+      it "uses double-quoted identifiers for the COUNT(*) probe" do
+        captured_count_sql = nil
+        connection.stub_query(
+          /pg_class/i,
+          columns: ["table_name", "engine", "table_collation", "auto_increment", "update_time", "data_mb", "index_mb", "total_mb", "fragmented_mb"],
+          rows: [["orders", nil, nil, nil, nil, 3.0, 1.0, 4.0, 0.0]],
+        )
+        connection.stub_query(/SELECT COUNT/i, columns: ["count"], rows: [[1]])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_count_sql = sql if sql.start_with?("SELECT COUNT")
+          original.call(sql, **kwargs)
+        end)
+        allow(connection).to(receive(:select_value).and_wrap_original do |original, sql|
+          captured_count_sql = sql if sql.start_with?("SELECT COUNT")
+          original.call(sql)
+        end)
+
+        analysis.call
+        expect(captured_count_sql).to(include(%("orders")))
+      end
+    end
   end
 end
