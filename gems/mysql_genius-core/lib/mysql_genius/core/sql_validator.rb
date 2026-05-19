@@ -33,9 +33,12 @@ module MysqlGenius
 
       def extract_table_references(sql, connection)
         tables = []
-        sql.scan(/\bFROM\s+((?:`?\w+`?(?:\s*,\s*`?\w+`?)*)+)/i) { |m| m[0].scan(/`?(\w+)`?/) { |t| tables << t[0] } }
-        sql.scan(/\bJOIN\s+`?(\w+)`?/i) { |m| tables << m[0] }
-        sql.scan(/\b(?:INTO|UPDATE)\s+`?(\w+)`?/i) { |m| tables << m[0] }
+        identifier = /(?:`([^`]+)`|"((?:""|[^"])+)"|(\w+))/
+        sql.scan(/\bFROM\s+((?:#{identifier.source}(?:\s*,\s*#{identifier.source})*)+)/i) do |match|
+          match[0].scan(identifier) { |parts| tables << unquote_identifier(parts) }
+        end
+        sql.scan(/\bJOIN\s+#{identifier.source}/i) { |parts| tables << unquote_identifier(parts) }
+        sql.scan(/\b(?:INTO|UPDATE)\s+#{identifier.source}/i) { |parts| tables << unquote_identifier(parts) }
         tables.uniq.map(&:downcase) & connection.tables
       end
 
@@ -53,6 +56,10 @@ module MysqlGenius
 
       def masked_column?(column_name, patterns)
         patterns.any? { |pattern| column_name.downcase.include?(pattern) }
+      end
+
+      def unquote_identifier(parts)
+        (parts.find { |part| part && !part.empty? } || "").gsub('""', '"')
       end
     end
   end

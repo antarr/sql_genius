@@ -77,6 +77,16 @@ RSpec.describe(MysqlGenius::Core::SqlValidator) do
       tables = described_class.extract_table_references("SELECT * FROM `users`", connection)
       expect(tables).to(include("users"))
     end
+
+    it "handles double-quoted table names" do
+      tables = described_class.extract_table_references('SELECT * FROM "users" JOIN "posts" ON "users"."id" = "posts"."user_id"', connection)
+      expect(tables).to(include("users", "posts"))
+    end
+
+    it "rejects blocked double-quoted table names" do
+      result = validate('SELECT * FROM "sessions"')
+      expect(result).to(include("sessions"))
+    end
   end
 
   describe ".apply_row_limit" do
