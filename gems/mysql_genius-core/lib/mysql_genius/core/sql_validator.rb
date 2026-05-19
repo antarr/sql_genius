@@ -54,12 +54,86 @@ module MysqlGenius
         end
       end
 
+      def normalize_identifier_quotes(sql, connection)
+        quote = connection.quote_table_name("mysql_genius_identifier_probe")[0]
+        return sql if quote == "`" || !sql.include?("`")
+
+        rewrite_backtick_identifiers(sql, connection)
+      end
+
       def masked_column?(column_name, patterns)
         patterns.any? { |pattern| column_name.downcase.include?(pattern) }
       end
 
       def unquote_identifier(parts)
         (parts.find { |part| part && !part.empty? } || "").gsub('""', '"')
+      end
+
+      def rewrite_backtick_identifiers(sql, connection)
+        output = +""
+        i = 0
+
+        while i < sql.length
+          char = sql[i]
+
+          if char == "'"
+            literal, i = read_single_quoted_literal(sql, i)
+            output << literal
+          elsif char == "`"
+            identifier, i = read_backtick_identifier(sql, i)
+            output << connection.quote_table_name(identifier)
+          else
+            output << char
+            i += 1
+          end
+        end
+
+        output
+      end
+
+      def read_single_quoted_literal(sql, index)
+        output = +"'"
+        i = index + 1
+
+        while i < sql.length
+          output << sql[i]
+          if sql[i] == "'"
+            if sql[i + 1] == "'"
+              output << sql[i + 1]
+              i += 2
+              next
+            end
+
+            i += 1
+            break
+          end
+          i += 1
+        end
+
+        [output, i]
+      end
+
+      def read_backtick_identifier(sql, index)
+        output = +""
+        i = index + 1
+
+        while i < sql.length
+          if sql[i] == "`"
+            if sql[i + 1] == "`"
+              output << "`"
+              i += 2
+              next
+            end
+
+            i += 1
+            break
+          end
+
+          output << sql[i]
+          i += 1
+        end
+
+        [output, i]
       end
     end
   end

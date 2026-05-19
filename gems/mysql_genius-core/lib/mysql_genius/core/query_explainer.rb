@@ -32,7 +32,7 @@ module MysqlGenius
           raise QueryRunner::Rejected, error if error
         end
 
-        clean_sql = sql.gsub(/;\s*\z/, "")
+        clean_sql = SqlValidator.normalize_identifier_quotes(sql, @connection).gsub(/;\s*\z/, "")
 
         unless looks_complete?(clean_sql)
           raise Truncated, "This query appears to be truncated and cannot be explained."

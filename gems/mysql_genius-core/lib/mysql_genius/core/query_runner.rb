@@ -35,7 +35,8 @@ module MysqlGenius
         )
         raise Rejected, validation_error if validation_error
 
-        limited = SqlValidator.apply_row_limit(sql, row_limit)
+        normalized = SqlValidator.normalize_identifier_quotes(sql, @connection)
+        limited = SqlValidator.apply_row_limit(normalized, row_limit)
         timed = apply_timeout_hint(limited)
 
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)

@@ -85,5 +85,19 @@ RSpec.describe(MysqlGenius::Core::QueryExplainer) do
       explainer.explain("SELECT id FROM users;")
       expect(captured_sql).to(eq("EXPLAIN SELECT id FROM users"))
     end
+
+    it "rewrites backtick identifiers when the connection uses double quotes" do
+      captured_sql = nil
+      allow(connection).to(receive(:quote_table_name) { |name| %("#{name}") })
+      connection.stub_query(/EXPLAIN/, columns: ["id"], rows: [[1]])
+      allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+        captured_sql = sql
+        original.call(sql, **kwargs)
+      end)
+
+      explainer.explain("SELECT `id` FROM `users`")
+
+      expect(captured_sql).to(eq(%(EXPLAIN SELECT "id" FROM "users")))
+    end
   end
 end
