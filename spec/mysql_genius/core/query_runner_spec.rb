@@ -179,6 +179,21 @@ RSpec.describe(MysqlGenius::Core::QueryRunner) do
         expect(captured_select).not_to(include("MAX_EXECUTION_TIME"))
       end
 
+      it "rewrites backtick identifiers to PostgreSQL double quotes" do
+        captured_select = nil
+        connection.stub_query(/SET statement_timeout/, columns: [], rows: [])
+        connection.stub_query(/SELECT "id" FROM "users"/i, columns: ["id"], rows: [[1]])
+
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_select = sql if sql.match?(/SELECT/i)
+          original.call(sql, **kwargs)
+        end)
+
+        runner.run("SELECT `id` FROM `users`", row_limit: 25)
+
+        expect(captured_select).to(include(%("id" FROM "users")))
+      end
+
       it "resets statement_timeout even when the query raises" do
         executed_sql = []
         connection.stub_query(/SET statement_timeout/, columns: [], rows: [])

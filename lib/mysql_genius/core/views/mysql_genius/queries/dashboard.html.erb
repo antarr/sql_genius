@@ -71,6 +71,7 @@
     query_detail: '<%= path_for(:query_detail_prefix) %>'
   };
 
+  var IDENTIFIER_QUOTE = String.fromCharCode(<%= (@identifier_quote_char || "`").ord %>);
   var RAILS_MIGRATION_VERSION = '<%= @framework_version_major %>.<%= @framework_version_minor %>';
 
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -88,6 +89,12 @@
   function show(e) { e.classList.remove('mg-hidden'); }
   function hide(e) { e.classList.add('mg-hidden'); }
   function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function quoteIdentifier(name) {
+    var quote = IDENTIFIER_QUOTE || '`';
+    var identifier = String(name);
+    if (quote === '[') return '[' + identifier.split(']').join(']]') + ']';
+    return quote + identifier.split(quote).join(quote + quote) + quote;
+  }
 
   function formatBytes(bytes) {
     if (bytes === null || bytes === undefined) return '—';
@@ -193,8 +200,8 @@
   'COUNT SUM AVG MIN MAX COALESCE IFNULL NULLIF CAST CONVERT CONCAT CONCAT_WS GROUP_CONCAT SUBSTRING SUBSTR REPLACE TRIM LTRIM RTRIM UPPER LOWER UCASE LCASE LENGTH CHAR_LENGTH NOW CURDATE CURTIME DATE_FORMAT DATE_ADD DATE_SUB DATEDIFF TIMESTAMPDIFF UNIX_TIMESTAMP FROM_UNIXTIME IF ELT FIELD FIND_IN_SET FORMAT HEX UNHEX MD5 SHA1 SHA2 AES_ENCRYPT AES_DECRYPT ROUND CEIL CEILING FLOOR ABS MOD POWER SQRT LOG LOG2 LOG10 RAND GREATEST LEAST JSON_EXTRACT JSON_UNQUOTE JSON_SET JSON_OBJECT JSON_ARRAY JSON_CONTAINS JSON_LENGTH ROW_NUMBER RANK DENSE_RANK LAG LEAD FIRST_VALUE LAST_VALUE NTH_VALUE'.split(' ').forEach(function(w) { SQL_FN_SET[w] = true; });
 
   // Single-pass tokenizer regex: matches tokens in order of priority
-  // 1) single-quoted strings  2) backtick identifiers  3) numbers  4) words  5) operators  6) punctuation  7) ? placeholder  8) * star  9) whitespace  10) anything else
-  var SQL_TOKEN_RE = /'[^']*'|`[^`]*`|\b\d+(?:\.\d+)?\b|[A-Za-z_]\w*|\?\|>=|<=|<>|!=|[><=]|[(),;*]|\s+|./g;
+  // 1) single-quoted strings  2) quoted identifiers  3) numbers  4) words  5) operators  6) punctuation  7) ? placeholder  8) * star  9) whitespace  10) anything else
+  var SQL_TOKEN_RE = /'[^']*'|`[^`]*`|"(?:""|[^"])*"|\b\d+(?:\.\d+)?\b|[A-Za-z_]\w*|\?|>=|<=|<>|!=|[><=]|[(),;*]|\s+|./g;
 
   function highlightSql(sql) {
     if (!sql) return '';
@@ -208,8 +215,8 @@
       if (ch === "'") {
         // String literal
         result.push('<span class="mg-sql-str">' + escHtml(tok) + '</span>');
-      } else if (ch === '`') {
-        // Backtick-quoted identifier
+      } else if (ch === '`' || ch === '"') {
+        // Quoted identifier
         result.push('<span class="mg-sql-tbl">' + escHtml(tok) + '</span>');
       } else if (/^\d/.test(tok)) {
         // Number
@@ -700,9 +707,9 @@
     var table = el('vb-table').value;
     if (!table) return '';
     var cols = [];
-    qsa('.vb-col-check:checked').forEach(function(c) { cols.push('`' + c.value + '`'); });
+    qsa('.vb-col-check:checked').forEach(function(c) { cols.push(quoteIdentifier(c.value)); });
     if (!cols.length) cols = ['*'];
-    var sql = 'SELECT ' + cols.join(', ') + ' FROM `' + table + '`';
+    var sql = 'SELECT ' + cols.join(', ') + ' FROM ' + quoteIdentifier(table);
     var wheres = [];
     qsa('.vb-filter-row').forEach(function(row) {
       var col = qs('.vb-filter-col', row).value;
@@ -711,15 +718,15 @@
       var val = valEl ? valEl.value : '';
       if (!col) return;
       if (op === 'IS NULL' || op === 'IS NOT NULL') {
-        wheres.push('`' + col + '` ' + op);
+        wheres.push(quoteIdentifier(col) + ' ' + op);
       } else if (op === 'BETWEEN') {
         var endEl = qs('.vb-filter-val-end', row);
         var endVal = endEl ? endEl.value : '';
-        wheres.push("`" + col + "` BETWEEN '" + val.replace(/'/g, "''") + "' AND '" + endVal.replace(/'/g, "''") + "'");
+        wheres.push(quoteIdentifier(col) + " BETWEEN '" + val.replace(/'/g, "''") + "' AND '" + endVal.replace(/'/g, "''") + "'");
       } else if (op === 'LIKE') {
-        wheres.push("`" + col + "` LIKE '" + val.replace(/'/g, "''") + "'");
+        wheres.push(quoteIdentifier(col) + " LIKE '" + val.replace(/'/g, "''") + "'");
       } else {
-        wheres.push("`" + col + "` " + op + " '" + val.replace(/'/g, "''") + "'");
+        wheres.push(quoteIdentifier(col) + " " + op + " '" + val.replace(/'/g, "''") + "'");
       }
     });
     if (wheres.length) sql += ' WHERE ' + wheres.join(' AND ');
@@ -727,7 +734,7 @@
     qsa('.vb-order-row').forEach(function(row) {
       var col = qs('.vb-order-col', row).value;
       var dir = qs('.vb-order-dir', row).value;
-      if (col) orders.push('`' + col + '` ' + dir);
+      if (col) orders.push(quoteIdentifier(col) + ' ' + dir);
     });
     if (orders.length) sql += ' ORDER BY ' + orders.join(', ');
     return sql;

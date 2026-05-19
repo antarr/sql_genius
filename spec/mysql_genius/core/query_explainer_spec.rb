@@ -129,6 +129,19 @@ RSpec.describe(MysqlGenius::Core::QueryExplainer) do
         expect(captured_sql).to(eq("EXPLAIN SELECT id FROM users"))
       end
 
+      it "rewrites backtick identifiers to PostgreSQL double quotes" do
+        captured_sql = nil
+        connection.stub_query(/EXPLAIN/, columns: ["plan"], rows: [["Seq Scan"]])
+        allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
+          captured_sql = sql
+          original.call(sql, **kwargs)
+        end)
+
+        explainer.explain("SELECT `id` FROM `users`", skip_validation: true)
+
+        expect(captured_sql).to(eq(%(EXPLAIN SELECT "id" FROM "users")))
+      end
+
       it "handles multi-digit placeholders ($10, $42)" do
         captured_sql = nil
         connection.stub_query(/EXPLAIN/, columns: ["plan"], rows: [["plan"]])

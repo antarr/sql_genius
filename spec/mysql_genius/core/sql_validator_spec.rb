@@ -5,7 +5,7 @@ RSpec.describe(MysqlGenius::Core::SqlValidator) do
   let(:all_tables) { ["users", "posts", "sessions", "authentication_tokens"] }
   let(:server_info) { MysqlGenius::Core::ServerInfo.new(vendor: :mysql, version: "8.0.35") }
   let(:connection) do
-    double("connection", tables: all_tables, server_version: server_info)
+    double("connection", tables: all_tables, server_version: server_info, quote_table_name: "`mysql_genius_identifier_probe`")
   end
 
   def validate(sql)
@@ -146,6 +146,32 @@ RSpec.describe(MysqlGenius::Core::SqlValidator) do
     it "strips trailing semicolons" do
       result = described_class.apply_row_limit("SELECT * FROM users;", 25)
       expect(result).to(eq("SELECT * FROM users LIMIT 25"))
+    end
+  end
+
+  describe ".normalize_identifier_quotes" do
+    it "leaves backticks intact for backtick-quoting adapters" do
+      sql = "SELECT `id` FROM `users` WHERE `name` = 'has `backtick` text'"
+
+      expect(described_class.normalize_identifier_quotes(sql, connection)).to(eq(sql))
+    end
+
+    it "rewrites backtick identifiers for double-quote adapters" do
+      pg_connection = double("connection")
+      allow(pg_connection).to(receive(:quote_table_name) { |name| %("#{name.gsub('"', '""')}") })
+
+      sql = "SELECT `id`, `title` FROM `users` WHERE `name` = 'has `backtick` text'"
+
+      expect(described_class.normalize_identifier_quotes(sql, pg_connection))
+        .to(eq(%(SELECT "id", "title" FROM "users" WHERE "name" = 'has `backtick` text')))
+    end
+
+    it "unescapes doubled backticks before adapter quoting" do
+      pg_connection = double("connection")
+      allow(pg_connection).to(receive(:quote_table_name) { |name| %("#{name.gsub('"', '""')}") })
+
+      expect(described_class.normalize_identifier_quotes("SELECT `weird``name` FROM `users`", pg_connection))
+        .to(eq(%(SELECT "weird`name" FROM "users")))
     end
   end
 
