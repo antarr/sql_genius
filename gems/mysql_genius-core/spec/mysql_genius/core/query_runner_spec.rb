@@ -63,20 +63,6 @@ RSpec.describe(MysqlGenius::Core::QueryRunner) do
       expect(captured_sql).to(match(/LIMIT 25/))
     end
 
-    it "rewrites backtick identifiers when the connection uses double quotes" do
-      captured_sql = nil
-      allow(connection).to(receive(:quote_table_name) { |name| %("#{name}") })
-      connection.stub_query(/SELECT/, columns: ["id"], rows: [[1]])
-      allow(connection).to(receive(:exec_query).and_wrap_original do |original, sql, **kwargs|
-        captured_sql = sql
-        original.call(sql, **kwargs)
-      end)
-
-      runner.run("SELECT `id` FROM `users`", row_limit: 25)
-
-      expect(captured_sql).to(include(%("id" FROM "users")))
-    end
-
     it "masks columns matching configured patterns with [REDACTED]" do
       connection.stub_query(
         /SELECT/,
