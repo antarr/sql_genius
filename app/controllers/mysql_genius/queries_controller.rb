@@ -17,7 +17,6 @@ module MysqlGenius
       @ai_enabled = mysql_genius_config.ai_enabled?
       @framework_version_major = Rails::VERSION::MAJOR
       @framework_version_minor = Rails::VERSION::MINOR
-      @identifier_quote_char = identifier_quote_char
       render("mysql_genius/queries/dashboard")
     end
 
@@ -77,10 +76,6 @@ module MysqlGenius
     end
 
     private
-
-    def identifier_quote_char
-      ActiveRecord::Base.connection.quote_table_name("mysql_genius_identifier_probe")[0]
-    end
 
     def queryable_tables
       ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables

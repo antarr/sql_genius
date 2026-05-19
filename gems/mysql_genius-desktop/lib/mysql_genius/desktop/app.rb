@@ -74,9 +74,6 @@ module MysqlGenius
         @ai_enabled              = settings.mysql_genius_config.ai.enabled?
         @framework_version_major = MysqlGenius::Core::VERSION.split(".")[0]
         @framework_version_minor = MysqlGenius::Core::VERSION.split(".")[1]
-        @identifier_quote_char   = settings.active_session.checkout do |adapter|
-          adapter.quote_table_name("mysql_genius_identifier_probe")[0]
-        end
 
         render_dashboard
       end

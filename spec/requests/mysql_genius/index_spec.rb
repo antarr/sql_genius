@@ -18,14 +18,6 @@ RSpec.describe("GET /mysql_genius/", type: :request) do
     expect(last_response.body).to(include("mg-tab"))
   end
 
-  it "renders the connection-specific identifier quote character" do
-    allow(ActiveRecord::Base.connection).to(receive(:quote_table_name).and_return('"mysql_genius_identifier_probe"'))
-
-    get "/mysql_genius/"
-
-    expect(last_response.body).to(include("var IDENTIFIER_QUOTE = String.fromCharCode(34);"))
-  end
-
   it "respects blocked_tables when building the table lists" do
     MysqlGenius.configure { |c| c.blocked_tables = ["orders"] }
     get "/mysql_genius/"
