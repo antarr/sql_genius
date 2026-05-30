@@ -58,6 +58,7 @@ Schema review, query optimization, index advisor, anomaly detection, root cause 
 - **Index Analysis** -- duplicate index detection, unused index detection with DROP statements
 - **Dark Theme** -- auto-detects system preference with manual toggle ([details](https://github.com/antarr/mysql_genius/wiki/Dark-Theme))
 - **MariaDB Support** -- automatically detects MariaDB and uses appropriate timeout syntax
+- **PostgreSQL Support** -- core analyses (table sizes, query stats, unused indexes, server overview) work on PostgreSQL via `pg_stat_statements` and `pg_stat_user_indexes`; dialect detected automatically
 - **Self-contained UI** -- no external CSS/JS dependencies, no jQuery, works with any Rails layout
 
 ## Quick Start

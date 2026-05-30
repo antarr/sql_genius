@@ -87,6 +87,7 @@ module MysqlGenius
 
     def anomaly_detection
       return ai_not_configured unless mysql_genius_config.ai_enabled?
+      return ai_unsupported_on_postgresql("Anomaly detection") if connected_to_postgresql?
 
       connection = ActiveRecord::Base.connection
 
@@ -148,6 +149,7 @@ module MysqlGenius
 
     def root_cause
       return ai_not_configured unless mysql_genius_config.ai_enabled?
+      return ai_unsupported_on_postgresql("Root cause analysis") if connected_to_postgresql?
 
       connection = ActiveRecord::Base.connection
 
@@ -312,6 +314,19 @@ module MysqlGenius
 
     def ai_not_configured
       render(json: { error: "AI features are not configured." }, status: :not_found)
+    end
+
+    def ai_unsupported_on_postgresql(feature_name)
+      render(
+        json: { error: "#{feature_name} is MySQL/MariaDB-only and is not available on PostgreSQL." },
+        status: :unprocessable_entity,
+      )
+    end
+
+    def connected_to_postgresql?
+      rails_connection.server_version.postgresql?
+    rescue StandardError
+      false
     end
   end
 end

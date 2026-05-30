@@ -6,9 +6,7 @@ module MysqlGenius
   module Core
     module Connection
       # Wraps an ActiveRecord::Base.connection and implements the
-      # Core::Connection contract. Lives in the mysql_genius (Rails
-      # adapter) gem because it depends on ActiveRecord; the contract
-      # itself lives in mysql_genius-core.
+      # Core::Connection contract.
       class ActiveRecordAdapter
         def initialize(ar_connection)
           @ar = ar_connection
@@ -25,7 +23,7 @@ module MysqlGenius
         end
 
         def server_version
-          Core::ServerInfo.parse(@ar.select_value("SELECT VERSION()").to_s)
+          @server_version ||= Core::ServerInfo.parse(@ar.select_value("SELECT VERSION()").to_s)
         end
 
         def current_database

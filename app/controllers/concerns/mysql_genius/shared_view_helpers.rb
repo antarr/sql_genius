@@ -9,16 +9,33 @@ module MysqlGenius
     end
 
     # URL path helper for shared templates.
-    #   path_for(:execute) # => "/mysql_genius/execute" (from engine route helpers)
+    #   path_for(:execute) # => "/mysql_genius/execute"
     #
     # When @digest is set (query detail page), routes that require a digest
     # param (query_detail, query_history) are generated with it automatically.
+    #
+    # `:query_detail_prefix` returns the engine-mount-aware base path that
+    # the dashboard JS appends a digest to (so query stat rows link to
+    # /mysql_genius/queries/${digest} rather than /queries/${digest}).
+    #
+    # Uses MysqlGenius::Engine.routes.url_helpers directly rather than the
+    # `mysql_genius` proxy: in production with eager loading, the proxy
+    # method isn't always injected onto the engine's controller in time,
+    # which surfaces as `NameError: undefined local variable or method
+    # 'mysql_genius'` the first time a view tries to build a URL.
     def path_for(name)
-      digest_routes = [:query_detail, :query_history]
-      if digest_routes.include?(name) && @digest
-        mysql_genius.public_send("#{name}_path", digest: @digest)
+      helpers = MysqlGenius::Engine.routes.url_helpers
+      case name
+      when :query_detail_prefix
+        "#{helpers.root_path}queries/"
+      when :query_detail, :query_history
+        if @digest
+          helpers.public_send("#{name}_path", digest: @digest)
+        else
+          helpers.public_send("#{name}_path", digest: "")
+        end
       else
-        mysql_genius.public_send("#{name}_path")
+        helpers.public_send("#{name}_path")
       end
     end
 
@@ -28,14 +45,32 @@ module MysqlGenius
       view_context.render(partial: "mysql_genius/queries/#{name}")
     end
 
-    # Capability flag for shared templates. The Rails adapter always
-    # reports every capability as present because it owns all routes
-    # (including the Redis-backed slow_queries / anomaly_detection /
-    # root_cause features). The Phase 2b sidecar overrides this with a
-    # narrower list in its own Sinatra app, which is why shared templates
-    # gate the associated UI via `<% if capability?(:slow_queries) %>` etc.
-    def capability?(_name)
-      true
+    # Capability flag for shared templates. Used to hide AI feature buttons
+    # whose underlying service has no equivalent on the connected dialect
+    # (e.g. InnoDB Health, Variable Review, Connection Advisor, Root Cause
+    # Analysis, and Anomaly Detection all read MySQL-specific server state
+    # via SHOW commands / performance_schema).
+    #
+    # All other capabilities default to true — the Rails adapter owns every
+    # route, including Redis-backed slow_queries.
+    def capability?(name)
+      case name
+      when :mysql_only_ai
+        !connected_to_postgresql?
+      else
+        true
+      end
+    end
+
+    private
+
+    def connected_to_postgresql?
+      MysqlGenius::Core::Connection::ActiveRecordAdapter
+        .new(ActiveRecord::Base.connection)
+        .server_version
+        .postgresql?
+    rescue StandardError
+      false
     end
   end
 end

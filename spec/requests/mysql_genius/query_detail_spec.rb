@@ -25,7 +25,7 @@ RSpec.describe("Query detail routes", type: :request) do
       tables: ["users"],
       exec_query: {
         /COUNT_STAR AS calls/ => current_stats_result,
-        /SELECT DIGEST_TEXT FROM performance_schema/ => digest_text_result,
+        /SELECT DIGEST_TEXT\s+FROM performance_schema/ => digest_text_result,
       },
       allow_unmatched_exec_query: true,
     )

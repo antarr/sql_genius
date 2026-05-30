@@ -6,7 +6,7 @@ RSpec.describe("Analysis routes", type: :request) do
   before do
     # Return canned information_schema and performance_schema results for
     # all the SELECTs the analysis classes emit. The actual analysis logic
-    # is unit-tested in gems/mysql_genius-core/spec/.../analysis/*_spec.rb;
+    # is unit-tested in spec/mysql_genius/core/analysis/*_spec.rb;
     # these request specs only verify routing/dispatch/JSON serialization.
     stub_connection(tables: ["users"])
     allow(ActiveRecord::Base.connection).to(receive_messages(exec_query: fake_result, select_value: "8.0.35"))
@@ -30,10 +30,15 @@ RSpec.describe("Analysis routes", type: :request) do
     expect(JSON.parse(last_response.body)).to(be_an(Array))
   end
 
-  it "GET /mysql_genius/unused_indexes returns 200 + JSON array" do
+  it "GET /mysql_genius/unused_indexes returns 200 + JSON object with indexes + stats context" do
     get "/mysql_genius/unused_indexes"
     expect(last_response).to(be_ok)
-    expect(JSON.parse(last_response.body)).to(be_an(Array))
+    json = JSON.parse(last_response.body)
+    expect(json).to(be_a(Hash))
+    expect(json).to(have_key("indexes"))
+    expect(json["indexes"]).to(be_an(Array))
+    expect(json).to(have_key("min_scans"))
+    expect(json).to(have_key("stats_reset_at"))
   end
 
   it "GET /mysql_genius/server_overview returns 200 + JSON object" do
