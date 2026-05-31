@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0
 
 ### Added
 - **PostgreSQL support across the dashboard.** Analyses (table sizes, query stats, unused indexes, server overview, duplicate indexes, query history) and the query detail page now run against PostgreSQL in addition to MySQL/MariaDB. Dialect is detected automatically from the `ActiveRecord::Base.connection`.
