@@ -1,0 +1,54 @@
+# frozen_string_literal: true
+
+require "rails_helper"
+
+RSpec.describe("GET /sql_genius/", type: :request) do
+  before do
+    stub_connection(tables: ["users", "orders", "products"])
+  end
+
+  it "returns 200" do
+    get "/sql_genius/"
+    expect(last_response).to(be_ok)
+  end
+
+  it "renders the dashboard HTML" do
+    get "/sql_genius/"
+    expect(last_response.content_type).to(include("text/html"))
+    expect(last_response.body).to(include("mg-tab"))
+  end
+
+  it "renders the connection-specific identifier quote character" do
+    allow(ActiveRecord::Base.connection).to(receive(:quote_table_name).and_return('"sql_genius_identifier_probe"'))
+
+    get "/sql_genius/"
+
+    expect(last_response.body).to(include("var IDENTIFIER_QUOTE = String.fromCharCode(34);"))
+  end
+
+  it "respects blocked_tables when building the table lists" do
+    SqlGenius.configure { |c| c.blocked_tables = ["orders"] }
+    get "/sql_genius/"
+    expect(last_response).to(be_ok)
+    # The tables dropdown should not contain the blocked table
+    expect(last_response.body).not_to(match(/<option value="orders">/))
+  end
+
+  it "respects featured_tables when set" do
+    SqlGenius.configure { |c| c.featured_tables = ["users"] }
+    get "/sql_genius/"
+    expect(last_response).to(be_ok)
+    expect(last_response.body).to(match(/<optgroup label="Featured">.*<option value="users">/m))
+    expect(last_response.body).to(include('<optgroup label="All Tables">'))
+  end
+
+  it "renders the query_detail link prefix with the engine mount, not a bare /queries/" do
+    # Regression guard: query stats rows generate <a href> links from the
+    # JS ROUTES.query_detail prefix. If that prefix is hardcoded to
+    # '/queries/' it bypasses the engine mount and 404s in the host app.
+    get "/sql_genius/"
+    expect(last_response).to(be_ok)
+    expect(last_response.body).to(include("query_detail: '/sql_genius/queries/'"))
+    expect(last_response.body).not_to(include("query_detail: '/queries/'"))
+  end
+end

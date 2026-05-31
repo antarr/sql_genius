@@ -1,4 +1,4 @@
-MySQLGenius Source-Available Non-Commercial License 1.0
+SQLGenius Source-Available Non-Commercial License 1.0
 
 Copyright (c) 2026 Antarr Byrd
 

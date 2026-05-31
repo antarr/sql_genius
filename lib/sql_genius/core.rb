@@ -1,0 +1,72 @@
+# frozen_string_literal: true
+
+module SqlGenius
+  # Connection abstraction, SQL validator, query runner, analyses, and AI
+  # services. Originally extracted into a separate `sql_genius-core` gem to
+  # support a planned desktop app; folded back into the main gem now that
+  # path is no longer being pursued.
+  module Core
+    class Error < StandardError; end
+
+    # Raised by AI services / analyses that don't support the connected
+    # database's dialect (e.g. InnoDB-only interpreters on PostgreSQL).
+    # Callers surface the message verbatim to the UI.
+    class UnsupportedDialect < Error
+      class << self
+        def for_postgresql(feature_name)
+          new("#{feature_name} is MySQL/MariaDB-only and is not available on PostgreSQL.")
+        end
+      end
+    end
+
+    class << self
+      # Absolute path to the shared ERB template directory. Adapters
+      # register this path with their view loader:
+      #
+      #   Rails:   engine.config.paths["app/views"] << SqlGenius::Core.views_path
+      #   Sinatra: set :views, SqlGenius::Core.views_path
+      def views_path
+        File.expand_path("core/views", __dir__)
+      end
+    end
+  end
+end
+
+require "sql_genius/core/result"
+require "sql_genius/core/server_info"
+require "sql_genius/core/column_definition"
+require "sql_genius/core/index_definition"
+require "sql_genius/core/sql_validator"
+require "sql_genius/core/query_builders"
+require "sql_genius/core/connection"
+require "sql_genius/core/connection/fake_adapter"
+require "sql_genius/core/ai/config"
+require "sql_genius/core/ai/client"
+require "sql_genius/core/ai/dialect_hints"
+require "sql_genius/core/ai/suggestion"
+require "sql_genius/core/ai/optimization"
+require "sql_genius/core/ai/schema_context_builder"
+require "sql_genius/core/ai/describe_query"
+require "sql_genius/core/ai/schema_review"
+require "sql_genius/core/ai/rewrite_query"
+require "sql_genius/core/ai/index_advisor"
+require "sql_genius/core/ai/migration_risk"
+require "sql_genius/core/ai/variable_reviewer"
+require "sql_genius/core/ai/connection_advisor"
+require "sql_genius/core/ai/workload_digest"
+require "sql_genius/core/ai/innodb_interpreter"
+require "sql_genius/core/ai/index_planner"
+require "sql_genius/core/ai/pattern_grouper"
+require "sql_genius/core/analysis/table_sizes"
+require "sql_genius/core/analysis/duplicate_indexes"
+require "sql_genius/core/analysis/query_stats"
+require "sql_genius/core/analysis/unused_indexes"
+require "sql_genius/core/analysis/server_overview"
+require "sql_genius/core/analysis/columns"
+require "sql_genius/core/analysis/stats_history"
+require "sql_genius/core/analysis/stats_collector"
+require "sql_genius/core/analysis/query_history"
+require "sql_genius/core/execution_result"
+require "sql_genius/core/query_runner/config"
+require "sql_genius/core/query_runner"
+require "sql_genius/core/query_explainer"

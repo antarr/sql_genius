@@ -4,20 +4,20 @@ require "rails_helper"
 
 RSpec.describe("Phase 1b latent regressions (CHANGELOG 0.4.0 / 0.4.1)", type: :request) do
   describe "Core::Connection::ActiveRecordAdapter boot-order regression (0.4.0)" do
-    # The bug: lib/mysql_genius.rb did not require
-    # "mysql_genius/core/connection/active_record_adapter". The concerns
+    # The bug: lib/sql_genius.rb did not require
+    # "sql_genius/core/connection/active_record_adapter". The concerns
     # referenced Core::Connection::ActiveRecordAdapter in every action,
     # which raised NameError at runtime. Fixed in 0.4.0 pre-publish
     # (commit 3272a80). This spec locks in the guarantee that the
-    # constant is reachable via `require "mysql_genius"` alone.
+    # constant is reachable via `require "sql_genius"` alone.
 
-    it "MysqlGenius::Core::Connection::ActiveRecordAdapter is defined after the engine boots" do
-      expect(defined?(MysqlGenius::Core::Connection::ActiveRecordAdapter)).to(eq("constant"))
+    it "SqlGenius::Core::Connection::ActiveRecordAdapter is defined after the engine boots" do
+      expect(defined?(SqlGenius::Core::Connection::ActiveRecordAdapter)).to(eq("constant"))
     end
 
     it "can be instantiated with an ActiveRecord connection double" do
       conn_double = instance_double("ActiveRecord::Base.connection")
-      adapter = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(conn_double)
+      adapter = SqlGenius::Core::Connection::ActiveRecordAdapter.new(conn_double)
       expect(adapter).to(respond_to(:tables))
       expect(adapter).to(respond_to(:exec_query))
       expect(adapter).to(respond_to(:columns_for))
@@ -47,16 +47,16 @@ RSpec.describe("Phase 1b latent regressions (CHANGELOG 0.4.0 / 0.4.1)", type: :r
           ],
         },
       )
-      MysqlGenius.configure { |c| c.masked_column_patterns = ["password"] }
+      SqlGenius.configure { |c| c.masked_column_patterns = ["password"] }
     end
 
     it "does not raise NoMethodError for GET /columns on a valid table" do
-      expect { get("/mysql_genius/columns?table=users") }.not_to(raise_error)
+      expect { get("/sql_genius/columns?table=users") }.not_to(raise_error)
       expect(last_response.status).to(eq(200))
     end
 
     it "successfully filters masked columns from the response" do
-      get "/mysql_genius/columns?table=users"
+      get "/sql_genius/columns?table=users"
       expect(last_response).to(be_ok)
       json = JSON.parse(last_response.body)
       expect(json.map { |c| c["name"] }).not_to(include("password_hash"))

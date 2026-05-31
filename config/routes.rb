@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-MysqlGenius::Engine.routes.draw do
+SqlGenius::Engine.routes.draw do
   root to: "queries#index"
 
   get  "columns",      to: "queries#columns"
