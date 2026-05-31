@@ -15,20 +15,20 @@
 require "logger"
 
 # .rspec has `--require spec_helper`, so spec_helper is auto-loaded before
-# rails_helper. spec_helper calls `require "mysql_genius"` when Rails is not
-# yet defined, so lib/mysql_genius.rb skips `require "mysql_genius/engine"`
+# rails_helper. spec_helper calls `require "sql_genius"` when Rails is not
+# yet defined, so lib/sql_genius.rb skips `require "sql_genius/engine"`
 # (which is guarded by `if defined?(Rails)`). By the time the dummy app boots
-# and application.rb calls `require "mysql_genius"`, the gem is already loaded
+# and application.rb calls `require "sql_genius"`, the gem is already loaded
 # and the require is a no-op — Engine is never defined.
 #
 # Fix: require Rails and the engine explicitly before booting the dummy app.
 require "rails"
-require "mysql_genius/engine"
+require "sql_genius/engine"
 
 # Stub ActiveRecord::Base before the dummy app boots, because Rails will
 # try to reference it if any railtie reaches for it. We don't load the
 # ActiveRecord railtie in the dummy app, so AR::Base is only referenced
-# at test time through MysqlGenius's own code.
+# at test time through SqlGenius's own code.
 unless defined?(ActiveRecord::Base)
   module ActiveRecord
     class Base
@@ -64,8 +64,8 @@ RSpec.configure do |config|
   # again in their own `before` blocks will clobber this default and must
   # re-set authenticate themselves.
   config.before(:each, type: :request) do
-    MysqlGenius.reset_configuration!
-    MysqlGenius.configure do |c|
+    SqlGenius.reset_configuration!
+    SqlGenius.configure do |c|
       c.authenticate = ->(_controller) { true }
     end
   end

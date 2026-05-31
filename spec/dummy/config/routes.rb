@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-  mount MysqlGenius::Engine => "/mysql_genius"
+  mount SqlGenius::Engine => "/sql_genius"
 end

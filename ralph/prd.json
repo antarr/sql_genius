@@ -1,5 +1,5 @@
 {
-  "project": "MysqlGenius",
+  "project": "SqlGenius",
   "branchName": "ralph/ssh-tunnel-support",
   "description": "Add built-in SSH tunnel support to the desktop sidecar so users can connect to MySQL databases behind firewalls without manually running ssh -L",
   "userStories": [
@@ -8,9 +8,9 @@
       "title": "Add net-ssh dependency and SshTunnel class",
       "description": "As a developer, I need a class that opens an SSH tunnel forwarding a local port to a remote MySQL server.",
       "acceptanceCriteria": [
-        "Add net-ssh ~> 7.0 to gems/mysql_genius-desktop/mysql_genius-desktop.gemspec as runtime dependency",
-        "Run bundle install in gems/mysql_genius-desktop",
-        "Create gems/mysql_genius-desktop/lib/mysql_genius/desktop/ssh_tunnel.rb",
+        "Add net-ssh ~> 7.0 to gems/sql_genius-desktop/sql_genius-desktop.gemspec as runtime dependency",
+        "Run bundle install in gems/sql_genius-desktop",
+        "Create gems/sql_genius-desktop/lib/sql_genius/desktop/ssh_tunnel.rb",
         "SshTunnel.new(ssh_host:, ssh_port: 22, ssh_user:, ssh_key_path: nil, ssh_password: nil, remote_host:, remote_port: 3306, local_port: 0)",
         "start method: opens SSH connection, sets up port forwarding, returns the allocated local port",
         "stop method: closes the SSH connection and port forwarding",
@@ -18,7 +18,7 @@
         "The tunnel runs in a background thread so it doesn't block the main thread",
         "If ssh_key_path is provided, use key-based auth. If ssh_password, use password auth. If neither, use ssh-agent",
         "Raises SshTunnel::ConnectionError with a clear message on failure",
-        "Create spec at gems/mysql_genius-desktop/spec/mysql_genius/desktop/ssh_tunnel_spec.rb",
+        "Create spec at gems/sql_genius-desktop/spec/sql_genius/desktop/ssh_tunnel_spec.rb",
         "Desktop gem suite passes",
         "Typecheck passes"
       ],

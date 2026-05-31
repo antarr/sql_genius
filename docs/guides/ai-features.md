@@ -1,6 +1,6 @@
 # AI Features Guide
 
-MysqlGenius integrates with OpenAI-compatible LLM APIs to provide AI-powered database analysis. All AI features are optional — the dashboard works fully without them.
+SqlGenius integrates with OpenAI-compatible LLM APIs to provide AI-powered database analysis. All AI features are optional — the dashboard works fully without them.
 
 ## Supported providers
 
@@ -19,10 +19,10 @@ MysqlGenius integrates with OpenAI-compatible LLM APIs to provide AI-powered dat
 
 ## Configuration
 
-In your Rails initializer (`config/initializers/mysql_genius.rb`):
+In your Rails initializer (`config/initializers/sql_genius.rb`):
 
 ```ruby
-MysqlGenius.configure do |config|
+SqlGenius.configure do |config|
   config.ai_endpoint = "https://api.openai.com/v1/chat/completions"
   config.ai_api_key = ENV["OPENAI_API_KEY"]
   config.ai_model = "gpt-4o-mini"
@@ -92,7 +92,7 @@ Optional instructions for the AI's recommendations:
 1. Install Ollama: `brew install ollama`
 2. Pull a model: `ollama pull llama3.2`
 3. Start Ollama: `ollama serve`
-4. In MysqlGenius, select **Ollama (local)** as the provider
+4. In SqlGenius, select **Ollama (local)** as the provider
 5. The endpoint and model auto-fill — just click **Save**
 
 No API key needed. All data stays on your machine.

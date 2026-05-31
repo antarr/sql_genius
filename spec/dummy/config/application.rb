@@ -13,7 +13,7 @@ require "rails"
 require "action_controller/railtie"
 
 Bundler.require(*Rails.groups)
-require "mysql_genius"
+require "sql_genius"
 
 module Dummy
   class Application < Rails::Application

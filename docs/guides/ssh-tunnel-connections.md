@@ -1,13 +1,13 @@
 # Connecting to MySQL Through an SSH Tunnel
 
-If your MySQL server is behind a firewall, on a private network, or only accessible via a bastion/jump host, you can use an SSH tunnel to connect MysqlGenius to it.
+If your MySQL server is behind a firewall, on a private network, or only accessible via a bastion/jump host, you can use an SSH tunnel to connect SqlGenius to it.
 
 ## How it works
 
-An SSH tunnel forwards a local port on your machine to the MySQL port on the remote server. MysqlGenius connects to `localhost:<local_port>` and the tunnel transparently routes traffic to the actual database server.
+An SSH tunnel forwards a local port on your machine to the MySQL port on the remote server. SqlGenius connects to `localhost:<local_port>` and the tunnel transparently routes traffic to the actual database server.
 
 ```
-Your Machine (MysqlGenius)  →  SSH Tunnel  →  Bastion Host  →  MySQL Server
+Your Machine (SqlGenius)  →  SSH Tunnel  →  Bastion Host  →  MySQL Server
 localhost:3307                                                   db.internal:3306
 ```
 
@@ -40,7 +40,7 @@ The `-f` flag sends SSH to the background after connecting.
 
 ## Step 2: Configure your Rails app
 
-MysqlGenius uses your app's `ActiveRecord::Base.connection`, which reads from `database.yml`. Point it at the tunnel:
+SqlGenius uses your app's `ActiveRecord::Base.connection`, which reads from `database.yml`. Point it at the tunnel:
 
 ```yaml
 # config/database.yml
@@ -53,11 +53,11 @@ production:
   database: app_production
 ```
 
-No special MysqlGenius configuration needed — it automatically uses the same connection as your Rails app.
+No special SqlGenius configuration needed — it automatically uses the same connection as your Rails app.
 
 ## Step 3: Verify the connection
 
-Start your Rails server and visit `/mysql_genius`. If the tunnel is running, the dashboard loads normally. If not, you'll see a connection error.
+Start your Rails server and visit `/sql_genius`. If the tunnel is running, the dashboard loads normally. If not, you'll see a connection error.
 
 ## Common issues
 
@@ -89,7 +89,7 @@ Another process is using port 3307. Pick a different local port:
 ssh -L 3308:db.internal:3306 user@bastion -N
 ```
 
-Then update your MysqlGenius config to use port `3308`.
+Then update your SqlGenius config to use port `3308`.
 
 ## Multiple databases through one bastion
 
@@ -103,7 +103,7 @@ ssh -L 3307:db-prod.internal:3306 user@bastion -N -f
 ssh -L 3308:db-staging.internal:3306 user@bastion -N -f
 ```
 
-Then create separate MysqlGenius profiles for each:
+Then create separate SqlGenius profiles for each:
 - **Production**: `127.0.0.1:3307`
 - **Staging**: `127.0.0.1:3308`
 
@@ -111,7 +111,7 @@ Then create separate MysqlGenius profiles for each:
 
 ### macOS: Launch Agent
 
-Create `~/Library/LaunchAgents/com.mysqlgenius.tunnel.plist`:
+Create `~/Library/LaunchAgents/com.sqlgenius.tunnel.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -119,7 +119,7 @@ Create `~/Library/LaunchAgents/com.mysqlgenius.tunnel.plist`:
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.mysqlgenius.tunnel</string>
+    <string>com.sqlgenius.tunnel</string>
     <key>ProgramArguments</key>
     <array>
         <string>ssh</string>
@@ -141,11 +141,11 @@ Create `~/Library/LaunchAgents/com.mysqlgenius.tunnel.plist`:
 Load it:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.mysqlgenius.tunnel.plist
+launchctl load ~/Library/LaunchAgents/com.sqlgenius.tunnel.plist
 ```
 
 The tunnel will start automatically on login and restart if it drops.
 
 ## Future: Built-in SSH tunnel support
 
-Built-in SSH tunnel support is planned for a future release. When available, you'll be able to configure the SSH connection directly in the MysqlGenius profile form without needing a separate terminal.
+Built-in SSH tunnel support is planned for a future release. When available, you'll be able to configure the SSH connection directly in the SqlGenius profile form without needing a separate terminal.

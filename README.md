@@ -1,6 +1,6 @@
-# MySQLGenius
+# SQLGenius
 
-An AI-powered MySQL dashboard for Rails to help you optimize your database for maximum performance, inspired by [PgHero](https://github.com/ankane/pghero).
+An AI-powered SQL dashboard for Rails to help you inspect and optimize MySQL, MariaDB, and PostgreSQL databases.
 
 ## Screenshots
 
@@ -53,10 +53,10 @@ Schema review, query optimization, index advisor, anomaly detection, root cause 
 - **SQL Syntax Highlighting** -- dark-themed code blocks with color-coded keywords, functions, strings
 - **Safe SQL Execution** -- read-only enforcement, blocked tables, masked columns, row limits, timeouts
 - **EXPLAIN Analysis** -- run EXPLAIN on any query and view the execution plan
-- **9 AI Tools** -- suggestions, optimization, schema review, query rewrite, index advisor, anomaly detection, root cause analysis, migration risk ([details](https://github.com/antarr/mysql_genius/wiki/AI-Features))
-- **Slow Query Monitoring** -- captures slow queries via ActiveSupport notifications and Redis ([details](https://github.com/antarr/mysql_genius/wiki/Slow-Query-Monitoring))
+- **9 AI Tools** -- suggestions, optimization, schema review, query rewrite, index advisor, anomaly detection, root cause analysis, migration risk ([details](https://github.com/antarr/sql_genius/wiki/AI-Features))
+- **Slow Query Monitoring** -- captures slow queries via ActiveSupport notifications and Redis ([details](https://github.com/antarr/sql_genius/wiki/Slow-Query-Monitoring))
 - **Index Analysis** -- duplicate index detection, unused index detection with DROP statements
-- **Dark Theme** -- auto-detects system preference with manual toggle ([details](https://github.com/antarr/mysql_genius/wiki/Dark-Theme))
+- **Dark Theme** -- auto-detects system preference with manual toggle ([details](https://github.com/antarr/sql_genius/wiki/Dark-Theme))
 - **MariaDB Support** -- automatically detects MariaDB and uses appropriate timeout syntax
 - **PostgreSQL Support** -- core analyses (table sizes, query stats, unused indexes, server overview) work on PostgreSQL via `pg_stat_statements` and `pg_stat_user_indexes`; dialect detected automatically
 - **Self-contained UI** -- no external CSS/JS dependencies, no jQuery, works with any Rails layout
@@ -65,36 +65,36 @@ Schema review, query optimization, index advisor, anomaly detection, root cause 
 
 ```ruby
 # Gemfile
-gem "mysql_genius"
+gem "sql_genius"
 ```
 
 ```bash
 bundle install
-rails generate mysql_genius:install
+rails generate sql_genius:install
 ```
 
-Visit `/mysql_genius` in your browser.
+Visit `/sql_genius` in your browser.
 
-For detailed setup, see the [Installation guide](https://github.com/antarr/mysql_genius/wiki/Installation).
+For detailed setup, see the [Installation guide](https://github.com/antarr/sql_genius/wiki/Installation).
 
 ## Configuration
 
 ```ruby
-MysqlGenius.configure do |config|
+SqlGenius.configure do |config|
   config.base_controller = "ApplicationController"
   config.authenticate = ->(controller) { controller.current_user&.admin? }
   config.blocked_tables += %w[oauth_tokens api_keys]
 end
 ```
 
-For full configuration options, see the [Configuration guide](https://github.com/antarr/mysql_genius/wiki/Configuration).
+For full configuration options, see the [Configuration guide](https://github.com/antarr/sql_genius/wiki/Configuration).
 
 ## AI Features (optional)
 
 Works with OpenAI, Azure OpenAI, Ollama Cloud, local Ollama, or any OpenAI-compatible API.
 
 ```ruby
-MysqlGenius.configure do |config|
+SqlGenius.configure do |config|
   config.ai_endpoint = "https://api.openai.com/v1/chat/completions"
   config.ai_api_key = ENV["OPENAI_API_KEY"]
   config.ai_model = "gpt-4o"
@@ -102,18 +102,18 @@ MysqlGenius.configure do |config|
 end
 ```
 
-For all provider examples, see the [AI Features guide](https://github.com/antarr/mysql_genius/wiki/AI-Features).
+For all provider examples, see the [AI Features guide](https://github.com/antarr/sql_genius/wiki/AI-Features).
 
 ### Troubleshooting TLS errors with Ollama Cloud
 
-If you see `SSL_connect ... unable to decode issuer public key` or `SSL_connect ... EC lib` when using an AI feature, your Rails host's Ruby is linked against an older OpenSSL that can't verify modern ECDSA certificate chains (Ollama Cloud is served behind Google Trust Services, whose ECDSA roots trip up OpenSSL 1.1.x and earlier). This is not specific to `mysql_genius` — it affects any Ruby HTTPS call to those hosts.
+If you see `SSL_connect ... unable to decode issuer public key` or `SSL_connect ... EC lib` when using an AI feature, your Rails host's Ruby is linked against an older OpenSSL that can't verify modern ECDSA certificate chains (Ollama Cloud is served behind Google Trust Services, whose ECDSA roots trip up OpenSSL 1.1.x and earlier). This is not specific to `sql_genius` — it affects any Ruby HTTPS call to those hosts.
 
 Three ways to fix it, in order of effort:
 
 **Use a local Ollama instead.** Point the endpoint at `http://localhost:11434/v1/chat/completions`. Your Rails app talks plain HTTP to the local `ollama` binary, which handles the upstream TLS itself using its own modern cert handling. For cloud-backed models, run `ollama signin` once and use the `:cloud` model suffix (e.g., `gemma3:27b-cloud`).
 
 ```ruby
-MysqlGenius.configure do |config|
+SqlGenius.configure do |config|
   config.ai_endpoint = "http://localhost:11434/v1/chat/completions"
   config.ai_api_key  = "unused-but-required"  # any non-empty string
   config.ai_model    = "gemma3:27b-cloud"     # or any local model
@@ -143,15 +143,15 @@ This helps if the problem is a stale trust store, but does **not** help if the u
 | 8.0   | 3.2, 3.3, 3.4 |
 | 8.1   | 3.2, 3.3, 3.4 |
 
-> **Rails 5.2:** dropped in `mysql_genius 0.6.0`. `mysql_genius 0.5.0` is the last version to support Rails 5.2 — pin it (`gem "mysql_genius", "~> 0.5.0"`) if you can't upgrade Rails yet. Rails 5.2 has been end-of-life since June 2022, and its incompatibilities with modern Rack (`ActionDispatch::Static#initialize` arity mismatch, `MiddlewareStack#operations` removal) surfaced as CI failures once Phase 2a's integration specs booted Rails in test.
+> **Rails 5.2:** dropped in `sql_genius 0.6.0`. `sql_genius 0.5.0` is the last version to support Rails 5.2 — pin it (`gem "sql_genius", "~> 0.5.0"`) if you can't upgrade Rails yet. Rails 5.2 has been end-of-life since June 2022, and its incompatibilities with modern Rack (`ActionDispatch::Static#initialize` arity mismatch, `MiddlewareStack#operations` removal) surfaced as CI failures once Phase 2a's integration specs booted Rails in test.
 
 ## Documentation
 
-Full documentation is available on the [Wiki](https://github.com/antarr/mysql_genius/wiki).
+Full documentation is available on the [Wiki](https://github.com/antarr/sql_genius/wiki).
 
 ## Licensing
 
-MysqlGenius is source-available.
+SqlGenius is source-available.
 
 - Free for personal, educational, hobby, nonprofit, and other non-commercial use
 - Commercial use requires prior written permission from the copyright holder
@@ -163,16 +163,16 @@ For commercial licensing requests, contact Antarr Byrd at antarr.t.byrd@uth.tmc.
 ## Development
 
 ```bash
-git clone https://github.com/antarr/mysql_genius.git
-cd mysql_genius
+git clone https://github.com/antarr/sql_genius.git
+cd sql_genius
 bin/setup
 bundle exec rspec
 ```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/antarr/mysql_genius.
+Bug reports and pull requests are welcome on GitHub at https://github.com/antarr/sql_genius.
 
 ## License
 
-This project is licensed under the terms of the [MySQLGenius Source-Available Non-Commercial License](LICENSE.txt). It is not distributed under the MIT License or another OSI-approved open source license.
+This project is licensed under the terms of the [SQLGenius Source-Available Non-Commercial License](LICENSE.txt). It is not distributed under the MIT License or another OSI-approved open source license.

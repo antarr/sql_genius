@@ -1,11 +1,11 @@
-# Getting Started with MysqlGenius (Rails)
+# Getting Started with SqlGenius (Rails)
 
 ## Installation
 
 Add to your Gemfile:
 
 ```ruby
-gem "mysql_genius"
+gem "sql_genius"
 ```
 
 ```bash
@@ -18,17 +18,17 @@ In `config/routes.rb`:
 
 ```ruby
 Rails.application.routes.draw do
-  mount MysqlGenius::Engine, at: "/mysql_genius"
+  mount SqlGenius::Engine, at: "/sql_genius"
   # ... your other routes
 end
 ```
 
 ## Configuration
 
-Create an initializer at `config/initializers/mysql_genius.rb`:
+Create an initializer at `config/initializers/sql_genius.rb`:
 
 ```ruby
-MysqlGenius.configure do |config|
+SqlGenius.configure do |config|
   # Authentication (required in production)
   config.authenticate = ->(controller) {
     # Example: restrict to admin users
@@ -55,8 +55,8 @@ MysqlGenius.configure do |config|
   config.query_timeout_ms = 10_000
 
   # AI features (optional)
-  config.ai_endpoint = ENV["MYSQL_GENIUS_AI_ENDPOINT"]
-  config.ai_api_key = ENV["MYSQL_GENIUS_AI_KEY"]
+  config.ai_endpoint = ENV["SQL_GENIUS_AI_ENDPOINT"]
+  config.ai_api_key = ENV["SQL_GENIUS_AI_KEY"]
   config.ai_model = "gpt-4o-mini"
   config.ai_auth_style = :bearer
 
@@ -73,7 +73,7 @@ end
 Start your Rails server and navigate to:
 
 ```
-http://localhost:3000/mysql_genius
+http://localhost:3000/sql_genius
 ```
 
 ## Features
